@@ -70,7 +70,8 @@ spec:
               environment:
                 description: |-
                   Environment marks which environment this project represents. Presentation only —
-                  nothing branches on it. See docs/project-duplicate/PHASE-4-environment.md.
+                  nothing branches on it, except that a preview sets it to "preview" so the badge is honest.
+                  See docs/project-duplicate/PHASE-4-environment.md.
                 enum:
                 - ""
                 - production
@@ -117,6 +118,130 @@ spec:
                   Paused indicates whether this project is paused
                   When paused, all pods are kept in Pending state to save resources
                 type: boolean
+              previewRef:
+                description: |-
+                  PreviewRef marks this project as *being* a preview, and says which pull request owns it.
+                  Set by Kaja, never by a user.
+
+                  It is also the safety catch on teardown: the reaper may only ever delete a project carrying
+                  one, so a bug in the matching logic cannot collect a real project.
+                properties:
+                  baseProject:
+                    description: BaseProject is the project this preview was copied
+                      from.
+                    type: string
+                  commentId:
+                    description: |-
+                      CommentID is the pull request comment Kaja keeps updated. Stored so the comment is edited
+                      in place rather than re-posted on every event; zero means one has not been posted yet, and
+                      the poster then searches the thread for its own marker before writing a second.
+                    format: int64
+                    type: integer
+                  fork:
+                    description: |-
+                      Fork records that the pull request came from outside the base repository. Kept on the
+                      record rather than re-derived, because the answer must not change if the fork is later
+                      deleted or renamed.
+                    type: boolean
+                  headRef:
+                    description: HeadRef is the branch the preview builds.
+                    type: string
+                  headSha:
+                    description: HeadSHA is the commit the preview last built.
+                    type: string
+                  installationId:
+                    description: |-
+                      InstallationID is the GitHub App installation that delivered the pull request event, and
+                      the only way back to the thread once the event itself is gone.
+                    format: int64
+                    type: integer
+                  lastActivityAt:
+                    description: |-
+                      LastActivityAt is when this preview last saw a push. Stored separately from the record's
+                      own updated_at, which moves for reasons that are not activity — a status report from the
+                      agent would otherwise keep an abandoned preview alive forever.
+                    format: date-time
+                    type: string
+                  number:
+                    description: Number is the pull request number.
+                    type: integer
+                  repoId:
+                    description: |-
+                      RepoID is GitHub's numeric repository id, durable across renames and transfers — the same
+                      reason the build path keys on it rather than on the clone URL.
+                    type: string
+                  repository:
+                    description: Repository is the owner/name form, for display only.
+                    type: string
+                required:
+                - baseProject
+                - number
+                - repoId
+                type: object
+              previews:
+                description: |-
+                  Previews turns this project into a base that pull requests are previewed from. Nil means
+                  off, which is why it is a pointer: absent and disabled must be the same thing for every
+                  project that predates the feature.
+                properties:
+                  allowForks:
+                    description: |-
+                      AllowForks lets pull requests from forks build. Off by default and deliberately hard to
+                      reach: a fork preview is arbitrary code built inside this cluster, holding the credentials
+                      this project's secrets carry. See docs/preview-environments §7.
+                    type: boolean
+                  enabled:
+                    description: Enabled is the switch. Everything else has a default.
+                    type: boolean
+                  expireAfterDays:
+                    description: |-
+                      ExpireAfterDays removes a preview this many days after the last push to its pull request.
+
+                      A pointer because zero is a real answer that differs from silence: nil means the default,
+                      and 0 means never expire. An int would make "no expiry" unreachable, or make it the
+                      accidental default for every project written before this field existed — and a preview
+                      environment nobody reaps is the cost problem this whole phase exists to prevent.
+                    type: integer
+                  maxConcurrent:
+                    description: |-
+                      MaxConcurrent caps how many previews of this project can exist at once. Same pointer
+                      reasoning as above: nil is the default, 0 means no cap.
+                    type: integer
+                  servicePolicies:
+                    additionalProperties:
+                      description: PreviewServicePolicy is what a preview does about
+                        one of the base project's managed services.
+                      enum:
+                      - fresh
+                      - seeded
+                      - shared
+                      - skipped
+                      type: string
+                    description: |-
+                      ServicePolicies decides what each managed service becomes in a preview, keyed by the
+                      service's name. A service not named here gets its own fresh instance, because that is the
+                      only policy that keeps a preview isolated — see docs/preview-environments §5.
+                    type: object
+                  skipDrafts:
+                    description: SkipDrafts leaves a draft pull request without a
+                      preview until it is marked ready.
+                    type: boolean
+                  targetCluster:
+                    description: |-
+                      TargetCluster puts previews on different infrastructure from the project they copy. Empty
+                      means the base project's own cluster. Cross-cluster duplicate already works, and running
+                      previews somewhere other than production is something no competitor offers.
+                    type: string
+                  variableOverrides:
+                    additionalProperties:
+                      type: string
+                    description: |-
+                      VariableOverrides replace project variables in every preview: the place to point a preview
+                      at a sandbox payment gateway rather than the live one.
+                    type: object
+                required:
+                - enabled
+                type: object
               projectRef:
                 description: ProjectRef references the project this resource belongs
                   to
@@ -165,11 +290,20 @@ spec:
                 type: array
               message:
                 type: string
+              nextRunAt:
+                description: NextRunAt is when a scheduled resource fires next, RFC3339.
+                  Optional.
+                type: string
               observedGeneration:
                 description: ObservedGeneration is the console desired-state version
                   (kaja.dev/generation) that Phase/Reason describe.
                 format: int64
                 type: integer
+              observedRunId:
+                description: |-
+                  ObservedRunID is the one-off run request the controller has already acted on. Without it a
+                  resync re-applying the same spec would start the run again. Optional.
+                type: string
               phase:
                 description: Phase is the derived workload health (e.g., Running,
                   Crashing, ImageError).
@@ -204,6 +338,32 @@ spec:
               reason:
                 description: Reason is a plain-language explanation of Phase.
                 type: string
+              runs:
+                description: Runs holds recent executions of a run-to-completion resource
+                  (e.g. a Task). Optional.
+                items:
+                  description: |-
+                    RunInfo is one execution of something that runs to completion — today a Task's run, and the
+                    same shape a BuildRun would need. Timestamps are RFC3339 strings, matching EventInfo, so the
+                    status stays plain JSON the console can render without a type in between.
+                  properties:
+                    finishedAt:
+                      type: string
+                    name:
+                      type: string
+                    phase:
+                      type: string
+                    reason:
+                      type: string
+                    startedAt:
+                      type: string
+                    trigger:
+                      type: string
+                  required:
+                  - name
+                  - phase
+                  type: object
+                type: array
               services:
                 description: Services holds service details for the resource (e.g.
                   HelmApp release services) for domain/route backend selection. Optional.

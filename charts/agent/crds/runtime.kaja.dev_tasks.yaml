@@ -1,0 +1,436 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.18.0
+  name: tasks.runtime.kaja.dev
+spec:
+  group: runtime.kaja.dev
+  names:
+    kind: Task
+    listKind: TaskList
+    plural: tasks
+    singular: task
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.statusEmoji
+      name: Status
+      type: string
+    - jsonPath: .spec.schedule
+      name: Schedule
+      type: string
+    - jsonPath: .spec.appRef
+      name: App
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: Task is the Schema for the tasks API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: spec defines the desired state of Task
+            properties:
+              annotations:
+                additionalProperties:
+                  type: string
+                description: |-
+                  Annotations are merged onto the CronJob. Also the channel the project-variable cascade
+                  uses to force a re-apply when a `{{ }}` value the task resolves has changed.
+                type: object
+              appRef:
+                description: |-
+                  AppRef names a ContainerApp in the same project whose image, env, secret references,
+                  resources and pull credentials this task inherits. Exactly one of AppRef or Image is set:
+                  inheriting is what makes "same image, different command" cheap to express.
+                type: string
+              args:
+                description: Args are passed to the entrypoint (or to Command when
+                  set).
+                items:
+                  type: string
+                type: array
+              clusterRef:
+                description: ClusterRef references the cluster where this resource
+                  is deployed
+                type: string
+              command:
+                description: |-
+                  Command overrides the image entrypoint. A task almost always sets this — it is the
+                  difference between the app and the task when both share an image.
+                items:
+                  type: string
+                type: array
+              concurrencyPolicy:
+                default: Forbid
+                description: |-
+                  ConcurrencyPolicy controls what happens when a run is still going at the next scheduled
+                  time. Defaults to Forbid, because overlapping runs of the same job is a data hazard, not a
+                  throughput win.
+                enum:
+                - Forbid
+                - Allow
+                - Replace
+                type: string
+              description:
+                description: Description provides additional context about the resource
+                type: string
+              displayName:
+                description: DisplayName is a human-readable name for the resource
+                type: string
+              env:
+                description: |-
+                  Env is applied on top of anything inherited from AppRef, so a task can point the same image
+                  at a different queue or dry-run flag without a second app.
+                items:
+                  description: EnvVar represents an environment variable
+                  properties:
+                    name:
+                      type: string
+                    value:
+                      description: |-
+                        Value is a literal, which may embed ${{ source.KEY }} references resolved by ValueRefs.
+                        Mutually exclusive with ValueFrom.
+                      type: string
+                    valueFrom:
+                      description: |-
+                        ValueFrom reads the value from a secret key at pod start, so the credential is never
+                        stored in this spec (nor in Mongo, nor in any template or duplicate of the project).
+                        Mutually exclusive with Value.
+                      properties:
+                        secretKeyRef:
+                          description: SecretKeySelector selects a key from a Secret
+                          properties:
+                            key:
+                              type: string
+                            name:
+                              type: string
+                          required:
+                          - key
+                          - name
+                          type: object
+                        serviceRef:
+                          description: ServiceKeySelector selects one published output
+                            of a managed service in the app's project.
+                          properties:
+                            key:
+                              description: Key is the output key the service publishes
+                                (e.g. DATABASE_URL, HOST).
+                              type: string
+                            service:
+                              description: Service is the plugin instance name, scoped
+                                to this app's project.
+                              type: string
+                          required:
+                          - key
+                          - service
+                          type: object
+                      type: object
+                    valueRefs:
+                      description: |-
+                        ValueRefs resolves the ${{ source.KEY }} references embedded in Value, one entry per
+                        distinct reference. It exists so a value can be *composed* from credentials — a
+                        connection URL built out of a service's separate host, port and password — without the
+                        credential itself ever entering this spec. The controller materializes each entry as its
+                        own secret-backed variable and rewrites the reference to point at it, so substitution
+                        happens in the kubelet at pod start.
+
+                        Empty for an ordinary literal, and for a value that is exactly one reference: that case
+                        is expressed as ValueFrom instead, which needs no rewriting.
+
+                        Derived from Value on every save and never authored, so it stays off the API surface —
+                        a client that sent one would only have it overwritten.
+                      items:
+                        description: EnvValueRef is one ${{ source.KEY }} reference
+                          inside an EnvVar's Value.
+                        properties:
+                          ref:
+                            description: Ref is the exact reference text it replaces,
+                              e.g. `${{ orders-db.PASSWORD }}`.
+                            type: string
+                          secretKeyRef:
+                            description: SecretKeyRef is what the cluster reads. Resolved
+                              from ServiceRef by the console.
+                            properties:
+                              key:
+                                type: string
+                              name:
+                                type: string
+                            required:
+                            - key
+                            - name
+                            type: object
+                          serviceRef:
+                            description: |-
+                              ServiceRef is the user's intent, kept so a duplicated project re-resolves against its
+                              own service rather than the source project's. See EnvVarSource for why both exist.
+                            properties:
+                              key:
+                                description: Key is the output key the service publishes
+                                  (e.g. DATABASE_URL, HOST).
+                                type: string
+                              service:
+                                description: Service is the plugin instance name,
+                                  scoped to this app's project.
+                                type: string
+                            required:
+                            - key
+                            - service
+                            type: object
+                        required:
+                        - ref
+                        type: object
+                      type: array
+                  required:
+                  - name
+                  type: object
+                type: array
+              historyLimit:
+                default: 3
+                description: HistoryLimit bounds retained finished runs of each outcome.
+                format: int32
+                type: integer
+              image:
+                description: Image runs a standalone task with no app behind it. Ignored
+                  when AppRef is set.
+                type: string
+              labels:
+                additionalProperties:
+                  type: string
+                description: Labels are merged onto the CronJob and the Jobs it creates.
+                type: object
+              manualRunId:
+                description: |-
+                  ManualRunID changes to request a one-off run. The controller creates a Job whenever it
+                  observes a value differing from status.observedRunId; the value itself is opaque. A field
+                  rather than an annotation so the request survives the same publish path as the rest of the
+                  spec.
+                type: string
+              projectRef:
+                description: ProjectRef references the project this resource belongs
+                  to
+                type: string
+              resources:
+                description: |-
+                  Resources overrides what is inherited from AppRef. A migration usually wants more memory
+                  and no CPU floor, which is rarely the app's shape.
+                properties:
+                  limits:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  requests:
+                    additionalProperties:
+                      type: string
+                    type: object
+                type: object
+              retries:
+                description: |-
+                  Retries is how many times a failed run is retried before it is recorded as failed
+                  (backoffLimit). Zero is a valid and common answer for a migration.
+                format: int32
+                type: integer
+              schedule:
+                description: |-
+                  Schedule is a cron expression. Set it and the task also exists as a CronJob; leave it unset
+                  and the task only ever runs when something asks it to.
+                type: string
+              suspend:
+                description: Suspend stops the schedule firing without deleting the
+                  task or its history.
+                type: boolean
+              timeoutSeconds:
+                description: |-
+                  TimeoutSeconds bounds a single run (activeDeadlineSeconds). Without it a wedged task holds
+                  its concurrency slot forever and every later run is skipped.
+                format: int32
+                type: integer
+              timezone:
+                description: |-
+                  Timezone interprets Schedule. Empty means the cluster's zone, which is what Kubernetes
+                  does when spec.timeZone is unset.
+                type: string
+            type: object
+          status:
+            description: status defines the observed state of Task, including its
+              run history.
+            properties:
+              checksCompleted:
+                type: string
+              events:
+                description: Events holds recent Warning events for the resource's
+                  workload, collected best-effort. Optional.
+                items:
+                  description: EventInfo holds recent Warning events for the resource's
+                    workload (best-effort).
+                  properties:
+                    count:
+                      format: int32
+                      type: integer
+                    lastSeen:
+                      type: string
+                    message:
+                      type: string
+                    object:
+                      type: string
+                    reason:
+                      type: string
+                  required:
+                  - reason
+                  type: object
+                type: array
+              message:
+                type: string
+              nextRunAt:
+                description: NextRunAt is when a scheduled resource fires next, RFC3339.
+                  Optional.
+                type: string
+              observedGeneration:
+                description: ObservedGeneration is the console desired-state version
+                  (kaja.dev/generation) that Phase/Reason describe.
+                format: int64
+                type: integer
+              observedRunId:
+                description: |-
+                  ObservedRunID is the one-off run request the controller has already acted on. Without it a
+                  resync re-applying the same spec would start the run again. Optional.
+                type: string
+              phase:
+                description: Phase is the derived workload health (e.g., Running,
+                  Crashing, ImageError).
+                type: string
+              pods:
+                description: Pods holds basic pod details for display (e.g. ContainerApp
+                  overview). Optional.
+                items:
+                  description: PodInfo holds basic pod details; Reason/Message surface
+                    container waiting/terminated state.
+                  properties:
+                    message:
+                      type: string
+                    name:
+                      type: string
+                    phase:
+                      type: string
+                    ready:
+                      type: string
+                    reason:
+                      type: string
+                    restartCount:
+                      format: int32
+                      type: integer
+                  required:
+                  - name
+                  - phase
+                  - ready
+                  - restartCount
+                  type: object
+                type: array
+              reason:
+                description: Reason is a plain-language explanation of Phase.
+                type: string
+              runs:
+                description: Runs holds recent executions of a run-to-completion resource
+                  (e.g. a Task). Optional.
+                items:
+                  description: |-
+                    RunInfo is one execution of something that runs to completion — today a Task's run, and the
+                    same shape a BuildRun would need. Timestamps are RFC3339 strings, matching EventInfo, so the
+                    status stays plain JSON the console can render without a type in between.
+                  properties:
+                    finishedAt:
+                      type: string
+                    name:
+                      type: string
+                    phase:
+                      type: string
+                    reason:
+                      type: string
+                    startedAt:
+                      type: string
+                    trigger:
+                      type: string
+                  required:
+                  - name
+                  - phase
+                  type: object
+                type: array
+              services:
+                description: Services holds service details for the resource (e.g.
+                  HelmApp release services) for domain/route backend selection. Optional.
+                items:
+                  description: ServiceInfo holds service details for display and domain
+                    backend selection.
+                  properties:
+                    name:
+                      type: string
+                    ports:
+                      items:
+                        description: ServicePortInfo holds a single port exposed by
+                          a service (for domain/route backend selection).
+                        properties:
+                          name:
+                            type: string
+                          port:
+                            format: int32
+                            type: integer
+                          protocol:
+                            type: string
+                        required:
+                        - port
+                        type: object
+                      type: array
+                  required:
+                  - name
+                  type: object
+                type: array
+              status:
+                type: string
+              statusEmoji:
+                type: string
+              steps:
+                items:
+                  properties:
+                    message:
+                      type: string
+                    name:
+                      type: string
+                    status:
+                      type: string
+                  required:
+                  - message
+                  - name
+                  - status
+                  type: object
+                type: array
+            required:
+            - status
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

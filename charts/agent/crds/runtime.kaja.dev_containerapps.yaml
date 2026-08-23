@@ -273,6 +273,21 @@ spec:
                   - containerPort
                   type: object
                 type: array
+              preDeployCommand:
+                description: |-
+                  PreDeployCommand runs once per version before the new spec reaches the Deployment —
+                  database migrations, almost always. It runs with the *incoming* image, so it executes with
+                  the code that needs it; a non-zero exit leaves the Deployment untouched and the previous
+                  version serving.
+
+                  A command rather than a reference to a Task: this is the release phase, and every platform
+                  that has one (Heroku, Render, Railway) models it as a command on the service. A reference
+                  can dangle, and a dangling one would block deploys with no way to express the fix here.
+                  Scheduled and one-off work is a Task; this is not that. See docs/tasks/README.md.
+
+                  Run through a shell like StartCommand, so a user can write "rails db:migrate" without
+                  knowing the image's entrypoint.
+                type: string
               projectRef:
                 description: ProjectRef references the project this resource belongs
                   to
@@ -623,11 +638,20 @@ spec:
                 type: array
               message:
                 type: string
+              nextRunAt:
+                description: NextRunAt is when a scheduled resource fires next, RFC3339.
+                  Optional.
+                type: string
               observedGeneration:
                 description: ObservedGeneration is the console desired-state version
                   (kaja.dev/generation) that Phase/Reason describe.
                 format: int64
                 type: integer
+              observedRunId:
+                description: |-
+                  ObservedRunID is the one-off run request the controller has already acted on. Without it a
+                  resync re-applying the same spec would start the run again. Optional.
+                type: string
               phase:
                 description: Phase is the derived workload health (e.g., Running,
                   Crashing, ImageError).
@@ -662,6 +686,32 @@ spec:
               reason:
                 description: Reason is a plain-language explanation of Phase.
                 type: string
+              runs:
+                description: Runs holds recent executions of a run-to-completion resource
+                  (e.g. a Task). Optional.
+                items:
+                  description: |-
+                    RunInfo is one execution of something that runs to completion — today a Task's run, and the
+                    same shape a BuildRun would need. Timestamps are RFC3339 strings, matching EventInfo, so the
+                    status stays plain JSON the console can render without a type in between.
+                  properties:
+                    finishedAt:
+                      type: string
+                    name:
+                      type: string
+                    phase:
+                      type: string
+                    reason:
+                      type: string
+                    startedAt:
+                      type: string
+                    trigger:
+                      type: string
+                  required:
+                  - name
+                  - phase
+                  type: object
+                type: array
               services:
                 description: Services holds service details for the resource (e.g.
                   HelmApp release services) for domain/route backend selection. Optional.
