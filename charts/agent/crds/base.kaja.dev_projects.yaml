@@ -190,6 +190,20 @@ spec:
                       reach: a fork preview is arbitrary code built inside this cluster, holding the credentials
                       this project's secrets carry. See docs/preview-environments §7.
                     type: boolean
+                  appPolicies:
+                    additionalProperties:
+                      description: PreviewAppPolicy is what a preview does about one
+                        of the base project's container apps.
+                      enum:
+                      - cloned
+                      - shared
+                      - skipped
+                      type: string
+                    description: |-
+                      AppPolicies decides what each container app becomes in a preview, keyed by the app's name.
+                      An app not named here is copied, because a preview missing an app nobody asked to leave out
+                      is a preview of the wrong thing — see docs/preview-environments/PHASE-8-scope-controls.md.
+                    type: object
                   enabled:
                     description: Enabled is the switch. Everything else has a default.
                     type: boolean
