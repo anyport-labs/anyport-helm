@@ -4,9 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.18.0
-  name: tasks.runtime.kaja.dev
+  name: tasks.runtime.anyport.dev
 spec:
-  group: runtime.kaja.dev
+  group: runtime.anyport.dev
   names:
     kind: Task
     listKind: TaskList
@@ -165,6 +165,33 @@ spec:
                         description: EnvValueRef is one ${{ source.KEY }} reference
                           inside an EnvVar's Value.
                         properties:
+                          appRef:
+                            description: |-
+                              AppRef points at a sibling container app instead of a credential, so cross-app addresses
+                              come from the platform rather than being typed in. Resolved to Literal, not to a secret:
+                              an app's address is derived and public, and routing it through a Secret would put a
+                              hostname in a credential store and make it unreadable in the console.
+                            properties:
+                              app:
+                                description: App is the container app's name, scoped
+                                  to this app's project.
+                                type: string
+                              key:
+                                description: 'Key is the address to read: HOST, PORT
+                                  or URL.'
+                                type: string
+                            required:
+                            - app
+                            - key
+                            type: object
+                          literal:
+                            description: |-
+                              Literal is what an AppRef resolved to, substituted into the value by the controller.
+
+                              The one reference kind whose value is not read at pod start. Empty means the reference was
+                              not resolved, and the controller drops the whole variable rather than exporting a value
+                              with a hole in it — the same rule an unresolved SecretKeyRef follows.
+                            type: string
                           ref:
                             description: Ref is the exact reference text it replaces,
                               e.g. `${{ orders-db.PASSWORD }}`.
@@ -308,7 +335,7 @@ spec:
                 type: string
               observedGeneration:
                 description: ObservedGeneration is the console desired-state version
-                  (kaja.dev/generation) that Phase/Reason describe.
+                  (anyport.dev/generation) that Phase/Reason describe.
                 format: int64
                 type: integer
               observedRunId:

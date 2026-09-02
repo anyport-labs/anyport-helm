@@ -9,7 +9,7 @@
 replicaCount: 1
 
 image:
-  repository: ghcr.io/kaja-labs/kaja-agent
+  repository: ghcr.io/anyport-labs/anyport-agent
   # IfNotPresent is correct for the production model: the chart pins an immutable
   # semver tag (appVersion, e.g. v0.1.0) so there's nothing to re-pull for a given
   # version, and rollout happens by moving to a new tag (helm upgrade, or the
@@ -54,15 +54,15 @@ service:
 
 # Environment variables for the agent
 env:
-  # Agent authentication token — required, obtain from the Kaja console.
+  # Agent authentication token — required, obtain from the Anyport console.
   # The platform resolves the cluster identity from this token at login,
   # so no cluster name/id needs to be configured here.
   agentToken: ""
   # agentId: optional override that scopes resource names/namespaces. Set only
   # when running multiple agents on the same Kubernetes cluster.
   agentId: ""
-  # gRPC server URL of the Kaja platform
-  portServerUrl: "grpc.server.kaja.dev:443"
+  # gRPC server URL of the Anyport platform
+  portServerUrl: "grpc.server.anyport.dev:443"
   # Use TLS for gRPC (recommended for production; set false for local dev / NodePort)
   grpcUseTls: true
   logLevel: "info"
@@ -78,7 +78,7 @@ env:
   # Set this to staging before exercising a NEW issuance path for the first time:
   #   https://acme-staging-v02.api.letsencrypt.org/directory
   # Production counts failed orders against a per-registered-domain limit, and every generated
-  # Kaja hostname shares one registered domain — so a broken first attempt does not spend your
+  # Anyport hostname shares one registered domain — so a broken first attempt does not spend your
   # budget, it spends everybody's. Staging speaks the same protocol with far looser limits.
   #
   # Staging certificates are NOT publicly trusted; browsers will warn. To go back, clear this and
@@ -93,14 +93,14 @@ env:
   # 2026-08-19. An earlier note here claimed the opposite; it is no longer true.
   # Don't fall back to a raw IP even temporarily; fix DNS instead, since IPs on
   # this node can change.
-  gatewayEndpoint: "gateway.kaja.dev:7000"
+  gatewayEndpoint: "gateway.anyport.dev:7000"
   # Skip verifying the gateway's cert on the agent-plane TLS handshake.
   #
   # Leave this false. The token this channel carries is the agent's only
   # identity and grants cluster-admin on your cluster, so an unverified channel
   # hands it to anyone able to sit on the path or hijack DNS.
   #
-  # It was unavoidable until 2026-08-19, when gateway.kaja.dev:7000 still
+  # It was unavoidable until 2026-08-19, when gateway.anyport.dev:7000 still
   # presented a self-signed cert and no agent could have connected otherwise.
   # It now serves a publicly trusted cert. Set this true only for a self-hosted
   # gateway behind a private CA.
@@ -142,7 +142,7 @@ ingress:
 # is what turns a blip into a backlog.
 #
 # Memory is the one to raise on a large cluster. The manager's informer cache is cluster-wide and
-# unfiltered, so agent memory tracks total objects in the cluster rather than Kaja's own
+# unfiltered, so agent memory tracks total objects in the cluster rather than Anyport's own
 # footprint: budget 256Mi/1Gi past ~500 objects and 512Mi/2Gi past ~5,000.
 resources:
   requests:

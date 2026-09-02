@@ -10,7 +10,7 @@ metadata:
     # Certificate is created by webhook-cert.yaml
     cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "agent.fullname" . }}-webhook-cert
 webhooks:
-  - name: mpod.kaja.dev
+  - name: mpod.anyport.dev
     admissionReviewVersions: ["v1"]
     sideEffects: None
     failurePolicy: Ignore
@@ -22,7 +22,7 @@ webhooks:
         resources: ["pods"]
     namespaceSelector:
       matchLabels:
-        kaja.dev/managed-by: project-controller
+        anyport.dev/managed-by: project-controller
     clientConfig:
       service:
         name: {{ include "agent.fullname" . }}

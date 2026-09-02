@@ -4,14 +4,14 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.18.0
-  name: buildconfigs.runtime.kaja.dev
+  name: helmapps.runtime.anyport.dev
 spec:
-  group: runtime.kaja.dev
+  group: runtime.anyport.dev
   names:
-    kind: BuildConfig
-    listKind: BuildConfigList
-    plural: buildconfigs
-    singular: buildconfig
+    kind: HelmApp
+    listKind: HelmAppList
+    plural: helmapps
+    singular: helmapp
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -21,8 +21,11 @@ spec:
     - jsonPath: .status.checksCompleted
       name: Checks
       type: string
-    - jsonPath: .spec.buildMode
-      name: Mode
+    - jsonPath: .spec.chart
+      name: Chart
+      type: string
+    - jsonPath: .spec.version
+      name: Version
       type: string
     - jsonPath: .metadata.creationTimestamp
       name: Age
@@ -30,7 +33,7 @@ spec:
     name: v1
     schema:
       openAPIV3Schema:
-        description: BuildConfig is the Schema for the buildconfigs API
+        description: HelmApp is the Schema for the helmapps API
         properties:
           apiVersion:
             description: |-
@@ -50,129 +53,119 @@ spec:
           metadata:
             type: object
           spec:
-            description: spec defines the desired state of BuildConfig
+            description: spec defines the desired state of HelmApp
             properties:
-              autoDeploy:
-                description: |-
-                  AutoDeploy when true triggers a new BuildRun automatically on git push (via webhook).
-                  Defaults to false; opt-in per app.
-                type: boolean
-              autoRollout:
-                description: AutoRollout configures optional ContainerApp update after
-                  success
-                properties:
-                  containerAppRef:
-                    type: string
-                  projectRef:
-                    type: string
-                required:
-                - containerAppRef
-                - projectRef
+              annotations:
+                additionalProperties:
+                  type: string
+                description: Annotations for additional metadata
                 type: object
-              buildMode:
-                description: BuildMode specifies the build strategy (Auto, Buildpack,
-                  Dockerfile)
+              chart:
+                description: Chart specifies the Helm chart name or path
                 type: string
-              buildParams:
-                description: BuildParams controls optional build parameters
-                properties:
-                  buildArgs:
-                    additionalProperties:
-                      type: string
-                    type: object
-                  buildEnv:
-                    additionalProperties:
-                      type: string
-                    description: |-
-                      BuildEnv is passed as environment variables into the Cloud Native Buildpacks
-                      lifecycle at build time (the buildpack counterpart to BuildArgs, which only apply to
-                      the Dockerfile/Kaniko path). Paketo buildpacks read `BP_*` vars from the build
-                      environment during detect/build — e.g. BP_WEB_SERVER=nginx + BP_WEB_SERVER_ROOT=dist
-                      makes a static SPA build produce an nginx web process instead of an unrunnable image.
-                      Ignored by the Dockerfile/Kaniko path.
-                    type: object
-                  cacheEnabled:
-                    type: boolean
-                  dockerfilePath:
-                    type: string
-                  targetStage:
-                    type: string
-                type: object
               clusterRef:
                 description: ClusterRef references the cluster where this resource
                   is deployed
                 type: string
-              containerAppProjectRef:
-                description: |-
-                  ContainerAppProjectRef is the project of the linked container app.
-                  Must be set if ContainerAppRef is set. Stored with distinct bson key to avoid
-                  conflicting with CommonMetadata.ProjectRef (cluster-scoping field).
-                type: string
-              containerAppRef:
-                description: |-
-                  ContainerAppRef is an optional reference to the container app this build config belongs to.
-                  When set, the build config is scoped to that container app and auto-rollout is implied.
-                type: string
+              createNamespace:
+                description: CreateNamespace indicates whether to create the namespace
+                type: boolean
               description:
                 description: Description provides additional context about the resource
-                type: string
-              destinationImage:
-                description: DestinationImage is the full image ref to push (e.g.
-                  registry/repo:tag-template)
                 type: string
               displayName:
                 description: DisplayName is a human-readable name for the resource
                 type: string
-              dockerCreds:
-                description: DockerCreds holds registry credentials
-                properties:
-                  password:
-                    type: string
-                  registry:
-                    type: string
-                  secretRef:
-                    type: string
-                  username:
-                    type: string
-                required:
-                - registry
-                type: object
-              gitSource:
+              exposeToOtherProjects:
                 description: |-
-                  GitSource describes the repository to build from.
-
-                  The bson tags here and on BuildGitSource are explicit and lowercase on purpose: the
-                  mongo driver lowercases untagged Go field names, so these documents have always been
-                  stored as `spec.gitsource.repourl`. Naming the keys freezes that (no migration) and
-                  stops anyone writing a query against the camelCase JSON name, which silently matches
-                  nothing — that bug disabled auto-deploy entirely. See buildconfig_bson_test.go.
-                properties:
-                  authType:
-                    type: string
-                  branch:
-                    type: string
-                  credentialRef:
-                    type: string
-                  repoURL:
-                    type: string
-                  subPath:
-                    type: string
-                required:
-                - authType
-                - branch
-                - repoURL
+                  ExposeToOtherProjects when true allows other project namespaces to reach this app's services.
+                  Only applies when the Project has allowIngressFromProjects set; then those projects can access this app.
+                type: boolean
+              exposeToProjects:
+                description: |-
+                  ExposeToProjects limits which project names may access this app when ExposeToOtherProjects is true.
+                  Empty means all projects in the Project's allowIngressFromProjects may access; non-empty restricts to this list.
+                items:
+                  type: string
+                type: array
+              labels:
+                additionalProperties:
+                  type: string
+                description: Labels for additional metadata
                 type: object
+              namespace:
+                description: Namespace where the release will be installed
+                type: string
               projectRef:
                 description: ProjectRef references the project this resource belongs
                   to
                 type: string
+              releaseName:
+                description: ReleaseName is the name of the Helm release
+                type: string
+              repository:
+                description: Repository specifies the Helm repository URL
+                type: string
+              upgradeCRDs:
+                description: |-
+                  UpgradeCRDs applies the chart's crds/ directory on upgrade, which Helm itself never does.
+
+                  Helm installs crds/ on first install and then leaves it alone forever, deliberately: a CRD
+                  replacement can break every object of that kind on the cluster, so the CLI makes it the
+                  operator's decision. That is the right default and the wrong one for a chart the *platform*
+                  installs and version-pins on the user's behalf — bumping such a chart would upgrade the
+                  controller and leave the CRDs it was written against behind, permanently.
+
+                  Off unless asked, and asked only by definitions whose operator ships CRDs that way (Percona's
+                  ps-operator does; CloudNativePG templates its CRDs, so a plain upgrade already carries them).
+                  See docs/databases/mysql-bake/README.md.
+                type: boolean
+              values:
+                additionalProperties:
+                  type: string
+                description: Values contains the values to pass to the chart
+                type: object
+              valuesFrom:
+                description: ValuesFrom references external sources for values
+                items:
+                  description: ValuesFromSource represents a source for values
+                  properties:
+                    configMapKeyRef:
+                      description: ConfigMapKeyRef references a key in a ConfigMap
+                      properties:
+                        key:
+                          type: string
+                        name:
+                          type: string
+                      required:
+                      - key
+                      - name
+                      type: object
+                    secretKeyRef:
+                      description: SecretKeyRef references a key in a Secret
+                      properties:
+                        key:
+                          type: string
+                        name:
+                          type: string
+                      required:
+                      - key
+                      - name
+                      type: object
+                  type: object
+                type: array
+              valuesYaml:
+                description: ValuesYaml contains the raw YAML string of values to
+                  pass to the chart
+                type: string
+              version:
+                description: Version specifies the chart version
+                type: string
             required:
-            - destinationImage
-            - dockerCreds
-            - gitSource
+            - chart
             type: object
           status:
-            description: status defines the observed state of BuildConfig
+            description: status defines the observed state of HelmApp
             properties:
               checksCompleted:
                 type: string
@@ -206,7 +199,7 @@ spec:
                 type: string
               observedGeneration:
                 description: ObservedGeneration is the console desired-state version
-                  (kaja.dev/generation) that Phase/Reason describe.
+                  (anyport.dev/generation) that Phase/Reason describe.
                 format: int64
                 type: integer
               observedRunId:

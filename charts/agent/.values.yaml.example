@@ -5,7 +5,7 @@
 # Usage:
 #   cp .values.yaml.example .values.yaml
 #   # edit .values.yaml with your real values
-#   helm upgrade --install kaja-agent ./agent -f .values.yaml -n kaja
+#   helm upgrade --install anyport-agent ./agent -f .values.yaml -n anyport
 
 # For LOCAL DEV against a mutable image tag (e.g. built with `task build:agent tag=develop`),
 # uncomment to always re-pull the moving tag. Production leaves these unset so the chart's
@@ -15,12 +15,12 @@
 #   pullPolicy: Always
 
 env:
-  # Agent token — obtain from the Kaja console under Settings > Clusters.
+  # Agent token — obtain from the Anyport console under Settings > Clusters.
   # The platform resolves the cluster identity from this token; no clusterId needed.
   agentToken: "REPLACE_WITH_AGENT_TOKEN"
   # agentId: only needed when running multiple agents on the same Kubernetes cluster.
   # agentId: "my-second-agent"
-  # gRPC endpoint of the Kaja platform
+  # gRPC endpoint of the Anyport platform
   portServerUrl: "grpc.your-domain.com:443"
   grpcUseTls: true
 

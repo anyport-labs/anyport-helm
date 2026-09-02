@@ -1,4 +1,4 @@
-# Kaja Agent Helm Chart
+# Anyport Agent Helm Chart
 
 ## Prerequisites
 
@@ -15,7 +15,7 @@ CRDs are in the chart's `crds/` directory (Helm standard). They are installed on
 
 ### Quick Start (No Webhooks)
 ```bash
-helm install kaja-agent ./agent --namespace kaja --create-namespace
+helm install anyport-agent ./agent --namespace anyport --create-namespace
 ```
 
 ### With Webhooks (Recommended for Production)
@@ -32,18 +32,18 @@ helm upgrade --install cert-manager jetstack/cert-manager \
   --wait
 ```
 
-2. **Install Kaja Agent**:
+2. **Install Anyport Agent**:
 ```bash
-helm install kaja-agent ./agent \
-  --namespace kaja \
+helm install anyport-agent ./agent \
+  --namespace anyport \
   --create-namespace \
   --set webhook.enabled=true
 ```
 
 ### Webhook-Only Mode (Testing)
 ```bash
-helm install kaja-agent ./agent \
-  --namespace kaja \
+helm install anyport-agent ./agent \
+  --namespace anyport \
   --create-namespace \
   --set webhook.enabled=true \
   --set webhook.webhookOnly=true
@@ -69,7 +69,7 @@ webhook:
 ## Upgrading
 
 ```bash
-helm upgrade kaja-agent ./agent --namespace kaja
+helm upgrade anyport-agent ./agent --namespace anyport
 ```
 
 Note: CRDs in `crds/` are not upgraded by Helm (per [Helm CRD best practices](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/)). If a chart version includes CRD changes, apply them manually with `kubectl apply -f crds/` or reinstall in a new cluster.
@@ -77,8 +77,8 @@ Note: CRDs in `crds/` are not upgraded by Helm (per [Helm CRD best practices](ht
 ## Uninstalling
 
 ```bash
-# Remove Kaja Agent
-helm uninstall kaja-agent --namespace kaja
+# Remove Anyport Agent
+helm uninstall anyport-agent --namespace anyport
 
 # Optionally remove cert-manager (if no other apps use it)
 helm uninstall cert-manager --namespace cert-manager
@@ -99,7 +99,7 @@ kubectl get pods -n cert-manager
 
 2. Check certificate is ready:
 ```bash
-kubectl get certificate -n kaja
+kubectl get certificate -n anyport
 ```
 
 3. Check CA bundle is injected:

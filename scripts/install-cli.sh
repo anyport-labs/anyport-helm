@@ -1,11 +1,11 @@
 #!/bin/sh
-# Install the Kaja CLI.
+# Install the Anyport CLI.
 #
 # Usage:
-#   curl -sfL https://kaja.dev/cli.sh | sh
-#   curl -sfL https://kaja.dev/cli.sh | sh -s -- --init        # then run `kaja init`
-#   curl -sfL https://kaja.dev/cli.sh | sh -s -- v0.1.0        # pin a version
-#   curl -sfL https://kaja.dev/cli.sh | KAJA_INSTALL_DIR=~/bin sh
+#   curl -sfL https://anyport.dev/cli.sh | sh
+#   curl -sfL https://anyport.dev/cli.sh | sh -s -- --init        # then run `anyport init`
+#   curl -sfL https://anyport.dev/cli.sh | sh -s -- v0.1.0        # pin a version
+#   curl -sfL https://anyport.dev/cli.sh | ANYPORT_INSTALL_DIR=~/bin sh
 #
 # POSIX sh only. This runs under `sh`, which is dash on Debian/Ubuntu: `set -o pipefail`
 # aborts the script on line 1 there, and `&>/dev/null` means "run in background".
@@ -14,10 +14,10 @@ set -eu
 # Binaries are published to the public charts repo because the product repo is private
 # and a release on it cannot be downloaded anonymously. Releases are tagged `cli/vX.Y.Z`
 # there, alongside the chart releases tagged `vX.Y.Z`.
-REPO="${KAJA_CLI_REPO:-kaja-labs/kaja-helm}"
-INSTALL_DIR="${KAJA_INSTALL_DIR:-/usr/local/bin}"
-VERSION="${KAJA_CLI_VERSION:-}"
-INIT="${KAJA_INIT:-}"
+REPO="${ANYPORT_CLI_REPO:-anyport-labs/anyport-helm}"
+INSTALL_DIR="${ANYPORT_INSTALL_DIR:-/usr/local/bin}"
+VERSION="${ANYPORT_CLI_VERSION:-}"
+INIT="${ANYPORT_INIT:-}"
 
 log() { echo "=== $* ==="; }
 err() { echo "Error: $*" >&2; }
@@ -89,7 +89,7 @@ bare=${VERSION#v}
 tag="cli/v${bare}"
 
 base="https://github.com/${REPO}/releases/download/${tag}"
-archive="kaja_${bare}_${os}_${arch}.tar.gz"
+archive="anyport_${bare}_${os}_${arch}.tar.gz"
 
 # --- download ----------------------------------------------------------------
 
@@ -97,7 +97,7 @@ tmp=$(mktemp -d)
 # Leaving a half-downloaded archive in /tmp on failure helps nobody debug anything.
 trap 'rm -rf "$tmp"' EXIT INT TERM
 
-log "Downloading kaja ${bare} (${os}/${arch})"
+log "Downloading anyport ${bare} (${os}/${arch})"
 if ! curl -sfL "${base}/${archive}" -o "${tmp}/${archive}"; then
   err "no build for ${os}/${arch} at ${tag}"
   echo "See https://github.com/${REPO}/releases/tag/${tag}" >&2
@@ -128,11 +128,11 @@ else
 fi
 
 tar -xzf "${tmp}/${archive}" -C "$tmp"
-if [ ! -f "${tmp}/kaja" ]; then
-  err "the archive did not contain a kaja binary"
+if [ ! -f "${tmp}/anyport" ]; then
+  err "the archive did not contain a anyport binary"
   exit 1
 fi
-chmod +x "${tmp}/kaja"
+chmod +x "${tmp}/anyport"
 
 # --- install -----------------------------------------------------------------
 
@@ -141,17 +141,17 @@ if [ ! -d "$INSTALL_DIR" ]; then
 fi
 
 if [ -w "$INSTALL_DIR" ]; then
-  mv "${tmp}/kaja" "${INSTALL_DIR}/kaja"
+  mv "${tmp}/anyport" "${INSTALL_DIR}/anyport"
 elif command -v sudo >/dev/null 2>&1; then
   log "Installing to ${INSTALL_DIR} (needs sudo)"
-  sudo mv "${tmp}/kaja" "${INSTALL_DIR}/kaja"
+  sudo mv "${tmp}/anyport" "${INSTALL_DIR}/anyport"
 else
   err "cannot write to ${INSTALL_DIR} and sudo is unavailable"
-  echo "Set KAJA_INSTALL_DIR to a writable directory and re-run." >&2
+  echo "Set ANYPORT_INSTALL_DIR to a writable directory and re-run." >&2
   exit 1
 fi
 
-log "Installed kaja ${bare} to ${INSTALL_DIR}/kaja"
+log "Installed anyport ${bare} to ${INSTALL_DIR}/anyport"
 
 # An install that lands outside PATH looks like a failed install.
 case ":${PATH}:" in
@@ -178,8 +178,8 @@ if [ -n "$INIT" ]; then
     rm -rf "$tmp"
     trap - EXIT INT TERM
     # Called by path: an install into a directory outside PATH is still a
-    # successful install, and `kaja` would not resolve.
-    exec "${INSTALL_DIR}/kaja" init < /dev/tty
+    # successful install, and `anyport` would not resolve.
+    exec "${INSTALL_DIR}/anyport" init < /dev/tty
   fi
 
   echo
@@ -187,4 +187,4 @@ if [ -n "$INIT" ]; then
 fi
 
 echo
-echo "Next: kaja init"
+echo "Next: anyport init"

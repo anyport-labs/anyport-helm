@@ -4,33 +4,20 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.18.0
-  name: secrets.base.kaja.dev
+  name: routes.runtime.anyport.dev
 spec:
-  group: base.kaja.dev
+  group: runtime.anyport.dev
   names:
-    kind: Secret
-    listKind: SecretList
-    plural: secrets
-    singular: secret
+    kind: Route
+    listKind: RouteList
+    plural: routes
+    singular: route
   scope: Namespaced
   versions:
-  - additionalPrinterColumns:
-    - jsonPath: .status.statusEmoji
-      name: Status
-      type: string
-    - jsonPath: .status.checksCompleted
-      name: Checks
-      type: string
-    - jsonPath: .spec.type
-      name: Type
-      type: string
-    - jsonPath: .metadata.creationTimestamp
-      name: Age
-      type: date
-    name: v1
+  - name: v1
     schema:
       openAPIV3Schema:
-        description: Secret is the Schema for the secrets API
+        description: Route is the Schema for the routes API
         properties:
           apiVersion:
             description: |-
@@ -39,6 +26,22 @@ spec:
               may reject unrecognized values.
               More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
+          httpsStatus:
+            description: |-
+              httpsStatus holds the observed HTTPS/TLS certificate state for this route.
+              Updated by the route controller independently of the main status checks.
+            properties:
+              message:
+                description: Message provides a human-readable description of the
+                  current phase
+                type: string
+              phase:
+                description: 'Phase is the current HTTPS certificate phase: HTTP |
+                  Issuing | Ready | Failed'
+                type: string
+            required:
+            - phase
+            type: object
           kind:
             description: |-
               Kind is a string value representing the REST resource this object represents.
@@ -50,122 +53,136 @@ spec:
           metadata:
             type: object
           spec:
-            description: spec defines the desired state of Secret
+            description: spec defines the desired state of Route
             properties:
               annotations:
                 additionalProperties:
                   type: string
-                description: Annotations for additional metadata
+                description: Annotations specifies additional annotations to add to
+                  the Ingress
                 type: object
-              basicAuth:
-                description: BasicAuth specifies username/password for kubernetes.io/basic-auth
-                  secret
+              backend:
+                description: Backend specifies the backend service for the route
                 properties:
-                  password:
+                  serviceName:
+                    description: ServiceName specifies the name of the backend service
                     type: string
-                  username:
+                  servicePort:
+                    description: |-
+                      ServicePort specifies the numeric port of the backend service.
+                      Ignored when ServicePortName is provided.
+                    format: int32
+                    type: integer
+                  servicePortName:
+                    description: |-
+                      ServicePortName specifies the named port of the backend service (e.g. "http").
+                      When set this takes precedence over ServicePort, making the Ingress resilient
+                      to port-number changes in the ContainerApp.
                     type: string
                 required:
-                - password
-                - username
+                - serviceName
                 type: object
+              backendNamespace:
+                description: BackendNamespace is the namespace where the backend Service
+                  lives. When set, the Ingress is created in this namespace so it
+                  can reference the Service (e.g. for HelmApp routes where the release
+                  is in a different namespace than the Route).
+                type: string
               clusterRef:
                 description: ClusterRef references the cluster where this resource
                   is deployed
                 type: string
-              data:
-                additionalProperties:
-                  type: string
-                description: Data contains the secret key-value pairs (base64-encoded
-                  strings)
-                type: object
               description:
                 description: Description provides additional context about the resource
                 type: string
               displayName:
                 description: DisplayName is a human-readable name for the resource
                 type: string
-              dockerconfigjson:
-                description: |-
-                  DockerConfigJSON specifies registry credentials to produce a
-                  kubernetes.io/dockerconfigjson secret with key .dockerconfigjson
-                properties:
-                  auths:
-                    items:
-                      description: DockerRegistryCredential represents a single registry
-                        credential
-                      properties:
-                        email:
-                          description: Email is optional in docker config
-                          type: string
-                        password:
-                          description: Password for the registry
-                          type: string
-                        server:
-                          description: Server registry (e.g., https://index.docker.io/v1/
-                            or ghcr.io)
-                          type: string
-                        username:
-                          description: Username for the registry
-                          type: string
-                      required:
-                      - server
-                      type: object
-                    type: array
-                type: object
-              immutable:
-                description: Immutable indicates whether the secret can be modified
-                type: boolean
+              host:
+                description: Host specifies the domain name for the route
+                type: string
               labels:
                 additionalProperties:
                   type: string
-                description: Labels for additional metadata
+                description: Labels specifies additional labels to add to the Ingress
                 type: object
+              path:
+                description: Path specifies the URL path for the route
+                type: string
               projectRef:
                 description: ProjectRef references the project this resource belongs
                   to
                 type: string
-              sshAuth:
-                description: SSHAuth specifies private key (and optional known_hosts)
-                  for kubernetes.io/ssh-auth
+              rules:
+                description: Rules specifies the routing rules for the route
+                items:
+                  description: RouteRule specifies a routing rule for a route
+                  properties:
+                    backend:
+                      description: Backend specifies the backend service for this
+                        rule
+                      properties:
+                        serviceName:
+                          description: ServiceName specifies the name of the backend
+                            service
+                          type: string
+                        servicePort:
+                          description: |-
+                            ServicePort specifies the numeric port of the backend service.
+                            Ignored when ServicePortName is provided.
+                          format: int32
+                          type: integer
+                        servicePortName:
+                          description: |-
+                            ServicePortName specifies the named port of the backend service (e.g. "http").
+                            When set this takes precedence over ServicePort, making the Ingress resilient
+                            to port-number changes in the ContainerApp.
+                          type: string
+                      required:
+                      - serviceName
+                      type: object
+                    host:
+                      description: Host specifies the domain name for this rule
+                      type: string
+                    path:
+                      description: Path specifies the URL path for this rule
+                      type: string
+                  type: object
+                type: array
+              setupLock:
+                description: |-
+                  SetupLock gates the route behind HTTP basic auth. Present means locked.
+                  No omitempty on json, same as Cluster's HTTPS.Disabled: copySpec replaces the spec, so
+                  an omitted field keeps whatever the CR already had and unlocking could never clear it.
                 properties:
-                  knownHosts:
-                    description: KnownHosts is optional known_hosts content
+                  realm:
+                    description: Realm is shown in the browser's credential prompt.
                     type: string
-                  privateKey:
-                    description: PrivateKey is the PEM-encoded private key
+                  secretName:
+                    description: |-
+                      SecretName names a Secret in the Ingress namespace holding one htpasswd line under the
+                      single key "auth". Exactly one key: traefik refuses a basic-auth secret with more than
+                      one element, and nginx looks this one up by name.
                     type: string
                 required:
-                - privateKey
-                type: object
-              stringData:
-                additionalProperties:
-                  type: string
-                description: |-
-                  StringData is a write-only, plain-text map mirroring core Secret .stringData
-                  Controller will move entries to .data (base64-encoded) and clear this field
+                - secretName
                 type: object
               tls:
-                description: TLS specifies certificate and key to produce a kubernetes.io/tls
-                  secret
+                description: TLS specifies the TLS configuration for the route
                 properties:
-                  cert:
-                    description: Cert is the PEM-encoded certificate
-                    type: string
-                  key:
-                    description: Key is the PEM-encoded private key
+                  secretName:
+                    description: SecretName specifies the name of the TLS secret containing
+                      the certificate
                     type: string
                 required:
-                - cert
-                - key
+                - secretName
                 type: object
-              type:
-                description: Type specifies the type of secret (Opaque, kubernetes.io/tls,
-                  etc.)
-                type: string
+            required:
+            - backend
+            - host
             type: object
           status:
-            description: status defines the observed state of Secret
+            description: status defines the observed state of Route
             properties:
               checksCompleted:
                 type: string
@@ -199,7 +216,7 @@ spec:
                 type: string
               observedGeneration:
                 description: ObservedGeneration is the console desired-state version
-                  (kaja.dev/generation) that Phase/Reason describe.
+                  (anyport.dev/generation) that Phase/Reason describe.
                 format: int64
                 type: integer
               observedRunId:

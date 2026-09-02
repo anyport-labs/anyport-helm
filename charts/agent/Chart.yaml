@@ -1,8 +1,8 @@
 apiVersion: v2
-name: kaja-agent-chart
+name: anyport-agent-chart
 description: >
-  Kaja Agent — deployed into each managed cluster. Runs Kubernetes controllers
-  and webhooks, syncs resource state to the Kaja platform, and executes
+  Anyport Agent — deployed into each managed cluster. Runs Kubernetes controllers
+  and webhooks, syncs resource state to the Anyport platform, and executes
   commands received via gRPC long-polling.
 type: application
 
@@ -12,16 +12,16 @@ type: application
 #   immutable, published agent image tag (e.g. v0.1.0) — releases publish the
 #   image first, then bump this. Kept in lockstep with constants.RecommendedAgentVersion
 #   on the platform side. See docs/agent-rollout/RELEASE.md.
-version: 0.3.23
-appVersion: "v0.2.22"
+version: 0.0.1
+appVersion: "v0.0.1"
 
-home: https://github.com/kaja-labs/kaja
+home: https://github.com/anyport-labs/anyport
 sources:
-  - https://github.com/kaja-labs/kaja
+  - https://github.com/anyport-labs/anyport
 
 keywords:
-  - kaja
-  - kaja-agent
+  - anyport
+  - anyport-agent
   - kubernetes
   - agent
   - operator
@@ -30,4 +30,4 @@ keywords:
 
 maintainers:
   - name: abdheshnayak
-    url: https://github.com/kaja-labs
+    url: https://github.com/anyport-labs

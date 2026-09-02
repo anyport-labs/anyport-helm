@@ -1,4 +1,4 @@
-1. The kaja agent has been deployed to namespace {{ .Release.Namespace }}.
+1. The anyport agent has been deployed to namespace {{ .Release.Namespace }}.
 
 2. Verify the agent pod is running:
    kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "agent.name" . }},app.kubernetes.io/instance={{ .Release.Name }}"

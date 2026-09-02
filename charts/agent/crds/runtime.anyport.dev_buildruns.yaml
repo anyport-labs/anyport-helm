@@ -4,9 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.18.0
-  name: buildruns.runtime.kaja.dev
+  name: buildruns.runtime.anyport.dev
 spec:
-  group: runtime.kaja.dev
+  group: runtime.anyport.dev
   names:
     kind: BuildRun
     listKind: BuildRunList

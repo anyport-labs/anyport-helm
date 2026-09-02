@@ -4,9 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.18.0
-  name: clusters.base.kaja.dev
+  name: clusters.base.anyport.dev
 spec:
-  group: base.kaja.dev
+  group: base.anyport.dev
   names:
     kind: Cluster
     listKind: ClusterList
@@ -553,7 +553,7 @@ spec:
                 type: object
               observedGeneration:
                 description: ObservedGeneration is the console desired-state version
-                  (kaja.dev/generation) that Phase/Reason describe.
+                  (anyport.dev/generation) that Phase/Reason describe.
                 format: int64
                 type: integer
               observedRunId:

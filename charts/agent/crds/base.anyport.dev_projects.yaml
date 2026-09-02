@@ -4,9 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.18.0
-  name: projects.base.kaja.dev
+  name: projects.base.anyport.dev
 spec:
-  group: base.kaja.dev
+  group: base.anyport.dev
   names:
     kind: Project
     listKind: ProjectList
@@ -121,7 +121,7 @@ spec:
               previewRef:
                 description: |-
                   PreviewRef marks this project as *being* a preview, and says which pull request owns it.
-                  Set by Kaja, never by a user.
+                  Set by Anyport, never by a user.
 
                   It is also the safety catch on teardown: the reaper may only ever delete a project carrying
                   one, so a bug in the matching logic cannot collect a real project.
@@ -132,7 +132,7 @@ spec:
                     type: string
                   commentId:
                     description: |-
-                      CommentID is the pull request comment Kaja keeps updated. Stored so the comment is edited
+                      CommentID is the pull request comment Anyport keeps updated. Stored so the comment is edited
                       in place rather than re-posted on every event; zero means one has not been posted yet, and
                       the poster then searches the thread for its own marker before writing a second.
                     format: int64
@@ -221,6 +221,15 @@ spec:
                       MaxConcurrent caps how many previews of this project can exist at once. Same pointer
                       reasoning as above: nil is the default, 0 means no cap.
                     type: integer
+                  scope:
+                    description: |-
+                      Scope decides the default for every app and service that AppPolicies and ServicePolicies do
+                      not name. Empty means PreviewScopeAll, so a project written before this field keeps the
+                      preview it already got.
+                    enum:
+                    - all
+                    - matchPullRequest
+                    type: string
                   servicePolicies:
                     additionalProperties:
                       description: PreviewServicePolicy is what a preview does about
@@ -310,7 +319,7 @@ spec:
                 type: string
               observedGeneration:
                 description: ObservedGeneration is the console desired-state version
-                  (kaja.dev/generation) that Phase/Reason describe.
+                  (anyport.dev/generation) that Phase/Reason describe.
                 format: int64
                 type: integer
               observedRunId:

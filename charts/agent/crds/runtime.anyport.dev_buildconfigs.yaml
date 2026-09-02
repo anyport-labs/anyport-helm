@@ -4,20 +4,33 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.18.0
-  name: routes.runtime.kaja.dev
+  name: buildconfigs.runtime.anyport.dev
 spec:
-  group: runtime.kaja.dev
+  group: runtime.anyport.dev
   names:
-    kind: Route
-    listKind: RouteList
-    plural: routes
-    singular: route
+    kind: BuildConfig
+    listKind: BuildConfigList
+    plural: buildconfigs
+    singular: buildconfig
   scope: Namespaced
   versions:
-  - name: v1
+  - additionalPrinterColumns:
+    - jsonPath: .status.statusEmoji
+      name: Status
+      type: string
+    - jsonPath: .status.checksCompleted
+      name: Checks
+      type: string
+    - jsonPath: .spec.buildMode
+      name: Mode
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1
     schema:
       openAPIV3Schema:
-        description: Route is the Schema for the routes API
+        description: BuildConfig is the Schema for the buildconfigs API
         properties:
           apiVersion:
             description: |-
@@ -26,22 +39,6 @@ spec:
               may reject unrecognized values.
               More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
-          httpsStatus:
-            description: |-
-              httpsStatus holds the observed HTTPS/TLS certificate state for this route.
-              Updated by the route controller independently of the main status checks.
-            properties:
-              message:
-                description: Message provides a human-readable description of the
-                  current phase
-                type: string
-              phase:
-                description: 'Phase is the current HTTPS certificate phase: HTTP |
-                  Issuing | Ready | Failed'
-                type: string
-            required:
-            - phase
-            type: object
           kind:
             description: |-
               Kind is a string value representing the REST resource this object represents.
@@ -53,136 +50,129 @@ spec:
           metadata:
             type: object
           spec:
-            description: spec defines the desired state of Route
+            description: spec defines the desired state of BuildConfig
             properties:
-              annotations:
-                additionalProperties:
-                  type: string
-                description: Annotations specifies additional annotations to add to
-                  the Ingress
-                type: object
-              backend:
-                description: Backend specifies the backend service for the route
+              autoDeploy:
+                description: |-
+                  AutoDeploy when true triggers a new BuildRun automatically on git push (via webhook).
+                  Defaults to false; opt-in per app.
+                type: boolean
+              autoRollout:
+                description: AutoRollout configures optional ContainerApp update after
+                  success
                 properties:
-                  serviceName:
-                    description: ServiceName specifies the name of the backend service
+                  containerAppRef:
                     type: string
-                  servicePort:
-                    description: |-
-                      ServicePort specifies the numeric port of the backend service.
-                      Ignored when ServicePortName is provided.
-                    format: int32
-                    type: integer
-                  servicePortName:
-                    description: |-
-                      ServicePortName specifies the named port of the backend service (e.g. "http").
-                      When set this takes precedence over ServicePort, making the Ingress resilient
-                      to port-number changes in the ContainerApp.
+                  projectRef:
                     type: string
                 required:
-                - serviceName
+                - containerAppRef
+                - projectRef
                 type: object
-              backendNamespace:
-                description: BackendNamespace is the namespace where the backend Service
-                  lives. When set, the Ingress is created in this namespace so it
-                  can reference the Service (e.g. for HelmApp routes where the release
-                  is in a different namespace than the Route).
+              buildMode:
+                description: BuildMode specifies the build strategy (Auto, Buildpack,
+                  Dockerfile)
                 type: string
+              buildParams:
+                description: BuildParams controls optional build parameters
+                properties:
+                  buildArgs:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  buildEnv:
+                    additionalProperties:
+                      type: string
+                    description: |-
+                      BuildEnv is passed as environment variables into the Cloud Native Buildpacks
+                      lifecycle at build time (the buildpack counterpart to BuildArgs, which only apply to
+                      the Dockerfile/Kaniko path). Paketo buildpacks read `BP_*` vars from the build
+                      environment during detect/build — e.g. BP_WEB_SERVER=nginx + BP_WEB_SERVER_ROOT=dist
+                      makes a static SPA build produce an nginx web process instead of an unrunnable image.
+                      Ignored by the Dockerfile/Kaniko path.
+                    type: object
+                  cacheEnabled:
+                    type: boolean
+                  dockerfilePath:
+                    type: string
+                  targetStage:
+                    type: string
+                type: object
               clusterRef:
                 description: ClusterRef references the cluster where this resource
                   is deployed
                 type: string
+              containerAppProjectRef:
+                description: |-
+                  ContainerAppProjectRef is the project of the linked container app.
+                  Must be set if ContainerAppRef is set. Stored with distinct bson key to avoid
+                  conflicting with CommonMetadata.ProjectRef (cluster-scoping field).
+                type: string
+              containerAppRef:
+                description: |-
+                  ContainerAppRef is an optional reference to the container app this build config belongs to.
+                  When set, the build config is scoped to that container app and auto-rollout is implied.
+                type: string
               description:
                 description: Description provides additional context about the resource
+                type: string
+              destinationImage:
+                description: DestinationImage is the full image ref to push (e.g.
+                  registry/repo:tag-template)
                 type: string
               displayName:
                 description: DisplayName is a human-readable name for the resource
                 type: string
-              host:
-                description: Host specifies the domain name for the route
-                type: string
-              labels:
-                additionalProperties:
-                  type: string
-                description: Labels specifies additional labels to add to the Ingress
+              dockerCreds:
+                description: DockerCreds holds registry credentials
+                properties:
+                  password:
+                    type: string
+                  registry:
+                    type: string
+                  secretRef:
+                    type: string
+                  username:
+                    type: string
+                required:
+                - registry
                 type: object
-              path:
-                description: Path specifies the URL path for the route
-                type: string
+              gitSource:
+                description: |-
+                  GitSource describes the repository to build from.
+
+                  The bson tags here and on BuildGitSource are explicit and lowercase on purpose: the
+                  mongo driver lowercases untagged Go field names, so these documents have always been
+                  stored as `spec.gitsource.repourl`. Naming the keys freezes that (no migration) and
+                  stops anyone writing a query against the camelCase JSON name, which silently matches
+                  nothing — that bug disabled auto-deploy entirely. See buildconfig_bson_test.go.
+                properties:
+                  authType:
+                    type: string
+                  branch:
+                    type: string
+                  credentialRef:
+                    type: string
+                  repoURL:
+                    type: string
+                  subPath:
+                    type: string
+                required:
+                - authType
+                - branch
+                - repoURL
+                type: object
               projectRef:
                 description: ProjectRef references the project this resource belongs
                   to
                 type: string
-              rules:
-                description: Rules specifies the routing rules for the route
-                items:
-                  description: RouteRule specifies a routing rule for a route
-                  properties:
-                    backend:
-                      description: Backend specifies the backend service for this
-                        rule
-                      properties:
-                        serviceName:
-                          description: ServiceName specifies the name of the backend
-                            service
-                          type: string
-                        servicePort:
-                          description: |-
-                            ServicePort specifies the numeric port of the backend service.
-                            Ignored when ServicePortName is provided.
-                          format: int32
-                          type: integer
-                        servicePortName:
-                          description: |-
-                            ServicePortName specifies the named port of the backend service (e.g. "http").
-                            When set this takes precedence over ServicePort, making the Ingress resilient
-                            to port-number changes in the ContainerApp.
-                          type: string
-                      required:
-                      - serviceName
-                      type: object
-                    host:
-                      description: Host specifies the domain name for this rule
-                      type: string
-                    path:
-                      description: Path specifies the URL path for this rule
-                      type: string
-                  type: object
-                type: array
-              setupLock:
-                description: |-
-                  SetupLock gates the route behind HTTP basic auth. Present means locked.
-                  No omitempty on json, same as Cluster's HTTPS.Disabled: copySpec replaces the spec, so
-                  an omitted field keeps whatever the CR already had and unlocking could never clear it.
-                properties:
-                  realm:
-                    description: Realm is shown in the browser's credential prompt.
-                    type: string
-                  secretName:
-                    description: |-
-                      SecretName names a Secret in the Ingress namespace holding one htpasswd line under the
-                      single key "auth". Exactly one key: traefik refuses a basic-auth secret with more than
-                      one element, and nginx looks this one up by name.
-                    type: string
-                required:
-                - secretName
-                type: object
-              tls:
-                description: TLS specifies the TLS configuration for the route
-                properties:
-                  secretName:
-                    description: SecretName specifies the name of the TLS secret containing
-                      the certificate
-                    type: string
-                required:
-                - secretName
-                type: object
             required:
-            - backend
-            - host
+            - destinationImage
+            - dockerCreds
+            - gitSource
             type: object
           status:
-            description: status defines the observed state of Route
+            description: status defines the observed state of BuildConfig
             properties:
               checksCompleted:
                 type: string
@@ -216,7 +206,7 @@ spec:
                 type: string
               observedGeneration:
                 description: ObservedGeneration is the console desired-state version
-                  (kaja.dev/generation) that Phase/Reason describe.
+                  (anyport.dev/generation) that Phase/Reason describe.
                 format: int64
                 type: integer
               observedRunId:

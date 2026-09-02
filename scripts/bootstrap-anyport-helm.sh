@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
-# Bootstrap kaja-helm repo with agent chart and workflows.
-# Run from kaja repo root. Requires: helm, git, and optional task (for CRD sync).
+# Bootstrap anyport-helm repo with agent chart and workflows.
+# Run from anyport repo root. Requires: helm, git, and optional task (for CRD sync).
 #
 # Usage:
-#   ./scripts/bootstrap-kaja-helm.sh [path-to-kaja-helm-clone]
-# If path omitted, uses ../kaja-helm (create if missing).
+#   ./scripts/bootstrap-anyport-helm.sh [path-to-anyport-helm-clone]
+# If path omitted, uses ../anyport-helm (create if missing).
 
 set -e
 
-KAJA_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-HELM_REPO="${1:-$KAJA_ROOT/../kaja-helm}"
-DOCS_HELM="$KAJA_ROOT/docs/kaja-helm-repo"
+ANYPORT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+HELM_REPO="${1:-$ANYPORT_ROOT/../anyport-helm}"
+DOCS_HELM="$ANYPORT_ROOT/docs/anyport-helm-repo"
 
-cd "$KAJA_ROOT"
+cd "$ANYPORT_ROOT"
 
 if [ ! -d "helms/agent" ]; then
-  echo "Error: helms/agent not found. Run from kaja repo root." >&2
+  echo "Error: helms/agent not found. Run from anyport repo root." >&2
   exit 1
 fi
 
@@ -28,8 +28,8 @@ else
 fi
 
 if [ ! -d "$HELM_REPO" ]; then
-  echo "Cloning kaja-helm into $HELM_REPO..."
-  git clone git@github.com:kaja-labs/kaja-helm.git "$HELM_REPO"
+  echo "Cloning anyport-helm into $HELM_REPO..."
+  git clone git@github.com:anyport-labs/anyport-helm.git "$HELM_REPO"
 fi
 
 echo "Copying agent chart to $HELM_REPO/charts/agent..."
@@ -40,9 +40,9 @@ cp -r helms/agent "$HELM_REPO/charts/agent"
 # Only the CLI installer now. The cluster and agent scripts were removed when the
 # CLI took over both halves of connecting a cluster — it registers and installs
 # in one process, so there is no token to paste between them.
-echo "Copying the CLI installer (served via raw.githubusercontent as kaja.dev/cli.sh)..."
+echo "Copying the CLI installer (served via raw.githubusercontent as anyport.dev/cli.sh)..."
 mkdir -p "$HELM_REPO/scripts"
-cp -f "$KAJA_ROOT/scripts/install-cli.sh" "$HELM_REPO/scripts/"
+cp -f "$ANYPORT_ROOT/scripts/install-cli.sh" "$HELM_REPO/scripts/"
 
 echo "Copying workflows and README..."
 mkdir -p "$HELM_REPO/.github/workflows"

@@ -83,9 +83,9 @@ spec:
             # Self-identity so the agent can restart/update its own Deployment in-place
             # (docs/agent-rollout). Deployment name is the chart fullname; namespace is
             # the release namespace (or the downward-API pod namespace as a fallback).
-            - name: KAJA_AGENT_DEPLOYMENT
+            - name: ANYPORT_AGENT_DEPLOYMENT
               value: {{ include "agent.fullname" . | quote }}
-            - name: KAJA_AGENT_NAMESPACE
+            - name: ANYPORT_AGENT_NAMESPACE
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
@@ -104,7 +104,7 @@ spec:
             {{- with .Values.resources }}
             {{- with .limits }}
             {{- if .memory }}
-            - name: KAJA_MEMORY_LIMIT_BYTES
+            - name: ANYPORT_MEMORY_LIMIT_BYTES
               valueFrom:
                 resourceFieldRef:
                   containerName: {{ $.Chart.Name }}
@@ -132,13 +132,13 @@ spec:
             {{- if .Values.env.autoHttps }}
             # Agent creates a Let's Encrypt ClusterIssuer (reusing the already-required
             # cert-manager) so routes get automatic HTTPS with no manual TLS secrets.
-            - name: KAJA_AUTO_HTTPS
+            - name: ANYPORT_AUTO_HTTPS
               value: "true"
-            - name: KAJA_ACME_EMAIL
+            - name: ANYPORT_ACME_EMAIL
               value: {{ required "env.acmeEmail is required when env.autoHttps is true" .Values.env.acmeEmail | quote }}
             {{- end }}
             {{- /*
-              Outside the autoHttps block on purpose. The agent binary defaults KAJA_AUTO_HTTPS to
+              Outside the autoHttps block on purpose. The agent binary defaults ANYPORT_AUTO_HTTPS to
               true when the variable is absent, and the ACME contact email usually arrives on the
               Cluster CR rather than through this chart — so a cluster can be issuing certificates
               with env.autoHttps never set here. Gating the directory on that flag would silently
@@ -146,7 +146,7 @@ spec:
               the values file says staging.
             */}}
             {{- if .Values.env.acmeServer }}
-            - name: KAJA_ACME_SERVER
+            - name: ANYPORT_ACME_SERVER
               value: {{ .Values.env.acmeServer | quote }}
             {{- end }}
             {{- if .Values.env.gatewayEndpoint }}
