@@ -2,7 +2,7 @@ name: Release
 
 # One tag releases EVERY chart in charts/ at that version (lockstep versioning).
 #
-#   v0.0.23  ->  charts/agent @ 0.0.23  +  charts/kaja-redis @ 0.0.23
+#   v0.0.23  ->  charts/agent @ 0.0.23  +  charts/anyport-redis @ 0.0.23
 #
 # The previous version hardcoded charts/agent at every step, so a second chart could never be
 # released — and tagging for one would have rewritten the *agent* chart's version and published
@@ -14,7 +14,7 @@ name: Release
 # constants.RecommendedAgentVersion tracks and the in-console agent rollout acts on) is left
 # alone, so a Redis-only release cannot advertise a phantom agent update.
 #
-# Tags are pushed by the kaja repo's release-charts.yml, which syncs the chart sources here
+# Tags are pushed by the anyport repo's release-charts.yml, which syncs the chart sources here
 # first. Publishing a version the console does not pin does nothing on its own — bump the pins
 # (constants.RecommendedAgentVersion, redisChartVersion) in the same release.
 
@@ -80,7 +80,7 @@ jobs:
           version: 'v3.14.0'
 
       - name: Lint chart
-        # kaja-redis deliberately refuses to render without a credentials secret (the platform
+        # anyport-redis deliberately refuses to render without a credentials secret (the platform
         # writes it before provisioning). Supply a placeholder; charts that ignore the value are
         # unaffected.
         run: helm lint "${{ matrix.chart }}" --set auth.existingSecret=ci-lint
