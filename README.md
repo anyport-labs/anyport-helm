@@ -1,81 +1,86 @@
-# kaja-helm
+# anyport-helm
 
-Helm charts for [Kaja](https://kaja.dev) — deploy the Kaja agent and CRDs to connect your Kubernetes clusters to the Kaja console.
+Helm charts for [Anyport](https://anyport.dev) — deploy the Anyport agent to connect your Kubernetes clusters to the Anyport console, plus the first-party charts the managed-services catalog installs.
+
+This repo also hosts the [Anyport CLI](#cli) binaries, released under `cli/vX.Y.Z` tags.
 
 ## Contents
 
 | Chart | Description |
 |-------|-------------|
-| [**agent**](charts/agent/) | Kaja agent and operator: runs in-cluster, syncs state to the console, and optionally serves validating/mutating webhooks. Includes CRDs for Environments, Clusters, Tunnels, Plugins, ContainerApps, HelmApps, Routes, and more. |
+| [**agent**](charts/agent/) | Anyport agent and operator: runs in-cluster, syncs state to the console, and optionally serves validating/mutating webhooks. Includes CRDs for Clusters, Projects, Secrets, ContainerApps, HelmApps, Routes, BuildConfigs, BuildRuns and Tasks. Published as `anyport-agent-chart`. |
+| [**anyport-redis**](charts/anyport-redis/) | Redis-compatible in-memory store (Valkey by default) behind the **Redis** entry in the managed-services catalog. Installed by the console, not by hand. |
+| [**anyport-rabbitmq**](charts/anyport-rabbitmq/) | Single-node RabbitMQ broker behind the **RabbitMQ** entry in the managed-services catalog. Installed by the console, not by hand. |
 
 ## Prerequisites
 
 - **Kubernetes** 1.24+
 - **Helm** 3.8+
-- **cert-manager** v1.13+ (only if you enable webhooks)
+- **cert-manager** v1.13+ (only if you enable webhooks; the agent installs it for you if it is missing)
 
 ## Quick start
 
-Install or upgrade from a [release](https://github.com/abdheshnayak/kaja-helm/releases) tarball or from the [GitHub Container Registry](https://github.com/abdheshnayak/kaja-helm/pkgs/container/kaja-agent-chart) (OCI). Use `helm upgrade --install` so the same command is idempotent (installs if missing, upgrades if already installed).
+### With the CLI (recommended)
 
-**Release tarball** (works whenever a [release](https://github.com/abdheshnayak/kaja-helm/releases) exists):
+The CLI registers the cluster and installs the agent in one step, so the agent token never has to be copied by hand:
 
 ```bash
-helm upgrade --install kaja-agent https://github.com/abdheshnayak/kaja-helm/releases/download/v0.0.1/kaja-agent-chart-0.0.1.tgz \
-  --namespace kaja \
+curl -sfL https://anyport.dev/cli.sh | sh
+```
+
+```bash
+anyport init
+```
+
+### With Helm
+
+Use `helm upgrade --install` so the same command is idempotent (installs if missing, upgrades if already installed). The agent's only required setting is `env.agentToken` — the platform resolves the cluster identity from the token, so there is no cluster name or id to configure.
+
+Get the token from the console when you add a cluster; it is shown once.
+
+**Release tarball:**
+
+```bash
+helm upgrade --install anyport-agent https://github.com/anyport-labs/anyport-helm/releases/download/v0.0.1/anyport-agent-chart-0.0.1.tgz \
+  --namespace anyport \
   --create-namespace \
-  --set env.clusterId=mycluster \
   --set env.agentToken="YOUR_AGENT_TOKEN"
 ```
 
-Replace `v0.0.1` and `kaja-agent-chart-0.0.1.tgz` with the [release](https://github.com/abdheshnayak/kaja-helm/releases) you want.
+Replace `v0.0.1` and `anyport-agent-chart-0.0.1.tgz` with the [release](https://github.com/anyport-labs/anyport-helm/releases) you want.
 
 **OCI (ghcr.io):**
 
 ```bash
-helm upgrade --install kaja-agent oci://ghcr.io/abdheshnayak/kaja-agent-chart \
+helm upgrade --install anyport-agent oci://ghcr.io/anyport-labs/anyport-agent-chart \
   --version 0.0.1 \
-  --namespace kaja \
+  --namespace anyport \
   --create-namespace \
-  --set env.clusterId=mycluster \
   --set env.agentToken="YOUR_AGENT_TOKEN"
 ```
 
-Replace `0.0.1` with the [release](https://github.com/abdheshnayak/kaja-helm/releases) version. If you see `not found`: ensure the Release workflow ran for that tag and the “Push chart to OCI” step succeeded; if the package is private, use the tarball or make the [package](https://github.com/abdheshnayak/kaja-helm/pkgs/container/kaja-agent-chart) public.
+Replace `0.0.1` with the [release](https://github.com/anyport-labs/anyport-helm/releases) version.
 
 ### From a local clone
 
 For development or custom changes:
 
 ```bash
-# Install or upgrade the Kaja agent (no webhooks)
-helm upgrade --install kaja-agent ./charts/agent --namespace kaja --create-namespace
-```
-
-Configure the agent (required for console connectivity):
-
-```bash
-helm upgrade --install kaja-agent ./charts/agent \
-  --namespace kaja \
+helm upgrade --install anyport-agent ./charts/agent \
+  --namespace anyport \
   --create-namespace \
-  --set env.clusterId=mycluster \
   --set env.agentToken="YOUR_AGENT_TOKEN"
 ```
 
-For production, enable webhooks (requires [cert-manager](https://cert-manager.io)):
+Webhooks are on by default and need [cert-manager](https://cert-manager.io). The agent installs cert-manager itself when it finds it missing; to install it up front, use the same chart and version so the two never fight over the release:
 
 ```bash
-# 1. Install cert-manager (one-time per cluster)
-kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.3/cert-manager.yaml
-kubectl wait --for=condition=available --timeout=300s deployment/cert-manager -n cert-manager
-
-# 2. Install or upgrade Kaja agent with webhooks
-helm upgrade --install kaja-agent ./charts/agent \
-  --namespace kaja \
-  --create-namespace \
-  --set webhook.enabled=true \
-  --set env.clusterId=mycluster \
-  --set env.agentToken="YOUR_AGENT_TOKEN"
+helm repo add jetstack https://charts.jetstack.io --force-update
+helm upgrade --install cert-manager jetstack/cert-manager \
+  --namespace cert-manager --create-namespace \
+  --version v1.14.0 \
+  --set installCRDs=true \
+  --wait
 ```
 
 ## Configuration
@@ -84,43 +89,54 @@ Key values for the agent chart:
 
 | Value | Description | Default |
 |-------|-------------|---------|
-| `env.clusterId` | Cluster identifier in the console | `mycluster` |
-| `env.agentToken` | Authentication token for the agent | `""` |
-| `env.portServerUrl` | gRPC port server URL (optional; default provided) | `""` |
+| `env.agentToken` | Agent authentication token from the console — required | `""` |
+| `env.agentId` | Scopes resource names and namespaces; set only when running several agents on one cluster | `""` |
+| `env.portServerUrl` | gRPC address of the Anyport platform | `grpc.server.anyport.dev:443` |
+| `env.gatewayEndpoint` | Self-hosted gateway agent-plane address; empty disables the tunnel | `gateway.anyport.dev:7000` |
+| `env.autoHttps` | Create a Let's Encrypt ClusterIssuer so routes get trusted certificates | `false` |
+| `env.acmeEmail` | Let's Encrypt account contact; required when `autoHttps` is true | `""` |
 | `env.logLevel` | Log level | `info` |
 | `webhook.enabled` | Enable validating/mutating webhooks | `true` |
-| `webhook.webhookOnly` | Run only webhook server (no controllers) | `false` |
+| `webhook.webhookOnly` | Run only the webhook server (no controllers) | `false` |
 | `replicaCount` | Number of agent replicas | `1` |
-| `image.repository` | Agent image | `ghcr.io/abdheshnayak/kaja-agent` |
+| `image.repository` | Agent image | `ghcr.io/anyport-labs/anyport-agent` |
 | `image.tag` | Image tag | chart `appVersion` |
 
 See [charts/agent/values.yaml](charts/agent/values.yaml) for all options.
 
 ## Documentation
 
-- **[Agent chart](charts/agent/README.md)** — Full install options, webhook setup, troubleshooting, and features (pause/resume environments, blueprints).
+- **[Agent chart](charts/agent/README.md)** — full install options, webhook setup, RBAC and troubleshooting.
+- **[anyport-redis](charts/anyport-redis/README.md)** and **[anyport-rabbitmq](charts/anyport-rabbitmq/README.md)** — value shapes for the catalog charts.
 
 ## Upgrade and uninstall
 
-Re-run the same `helm upgrade --install` command with a new `--version` (or new tarball URL) to upgrade. No separate upgrade flow.
+Re-run the same `helm upgrade --install` command with a new `--version` (or new tarball URL) to upgrade. No separate upgrade flow. The console can also roll the agent forward for you from the cluster's settings.
 
 **Uninstall:**
 
 ```bash
-helm uninstall kaja-agent --namespace kaja
+helm uninstall anyport-agent --namespace anyport
 ```
 
-Note: Uninstalling does not remove CRDs or existing custom resources. Remove those separately if needed.
+Note: uninstalling does not remove CRDs or existing custom resources. Remove those separately if needed.
+
+## CLI
+
+The Anyport CLI is published here rather than in the product repo, so it can be downloaded anonymously. Releases are tagged `cli/vX.Y.Z`, alongside the chart releases tagged `vX.Y.Z`.
+
+```bash
+curl -sfL https://anyport.dev/cli.sh | sh
+curl -sfL https://anyport.dev/cli.sh | sh -s -- v0.0.2          # pin a version
+curl -sfL https://anyport.dev/cli.sh | ANYPORT_INSTALL_DIR=~/bin sh
+```
 
 ## Release workflow
 
-Releases are built by GitHub Actions when you push a version tag.
+Charts are not edited here. They are synced from `helms/` in the [anyport](https://github.com/anyport-labs/anyport) repo by its `release-charts.yml` workflow, which pushes to `main` and then tags this repo.
 
-1. Push a tag (e.g. `v0.0.1`, `v1.0.0`):
+That tag triggers the [Release workflow](.github/workflows/release.yaml), which discovers every chart under `charts/`, stamps its `version:` from the tag, packages it, pushes it to `ghcr.io/anyport-labs/<chart>` and attaches the tarball to a [GitHub Release](https://github.com/anyport-labs/anyport-helm/releases).
 
-   ```bash
-   git tag v0.0.1
-   git push origin v0.0.1
-   ```
+All charts are versioned in lockstep — one tag, one version, every chart — so a chart can be republished byte-identical under a new number. Only `version:` is stamped; `appVersion:` (the agent image tag) is left as synced, so a Redis-only release cannot advertise a phantom agent update.
 
-2. The workflow will set the chart version from the tag, lint and package the chart, push it to the [GitHub Container Registry](https://github.com/abdheshnayak/kaja-helm/pkgs/container/kaja-agent-chart) as `ghcr.io/<owner>/kaja-agent-chart`, and create a [GitHub Release](https://github.com/abdheshnayak/kaja-helm/releases) with `kaja-agent-chart-<version>.tgz` attached.
+A GHCR package is private on its first push. Make it public once, in the repo's Packages settings, or agents in customer clusters cannot pull it.
