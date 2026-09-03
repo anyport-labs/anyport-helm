@@ -78,13 +78,19 @@ spec:
                 type: string
               exposeToOtherProjects:
                 description: |-
-                  ExposeToOtherProjects when true allows other project namespaces to reach this app's services.
-                  Only applies when the Project has allowIngressFromProjects set; then those projects can access this app.
+                  ExposeToOtherProjects is the deprecated form of ExposeToProjects: true meant "share with
+                  whatever the Project's allowIngressFromProjects lists". It is still honoured when
+                  ExposeToProjects is empty, and nothing writes it.
+
+                  Deprecated: set ExposeToProjects instead.
                 type: boolean
               exposeToProjects:
                 description: |-
-                  ExposeToProjects limits which project names may access this app when ExposeToOtherProjects is true.
-                  Empty means all projects in the Project's allowIngressFromProjects may access; non-empty restricts to this list.
+                  ExposeToProjects names the projects allowed to reach this release's pods across the
+                  network-isolation baseline. Empty — the default — means no other project can.
+
+                  It stands on its own: the project-level allowIngressFromProjects list is not consulted, so
+                  sharing one app is one edit in one place. See docs/network-isolation §5.
                 items:
                   type: string
                 type: array

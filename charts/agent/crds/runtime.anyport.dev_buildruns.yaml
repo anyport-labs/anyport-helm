@@ -81,12 +81,12 @@ spec:
                     additionalProperties:
                       type: string
                     description: |-
-                      BuildEnv is passed as environment variables into the Cloud Native Buildpacks
-                      lifecycle at build time (the buildpack counterpart to BuildArgs, which only apply to
-                      the Dockerfile/Kaniko path). Paketo buildpacks read `BP_*` vars from the build
-                      environment during detect/build — e.g. BP_WEB_SERVER=nginx + BP_WEB_SERVER_ROOT=dist
-                      makes a static SPA build produce an nginx web process instead of an unrunnable image.
-                      Ignored by the Dockerfile/Kaniko path.
+                      BuildEnv is the repository's build-time environment, used when building without a
+                      Dockerfile. It reaches the builder twice, because it is needed for two different things:
+                      to decide what the repository *is* (RAILPACK_SPA_OUTPUT_DIR makes a single-page app be
+                      served as a static site), and to run the build's own commands. It is delivered to the
+                      build as a mounted secret rather than a build argument, so a value cannot end up in an
+                      image layer. The Dockerfile path uses BuildArgs instead.
                     type: object
                   cacheEnabled:
                     type: boolean
@@ -158,8 +158,13 @@ spec:
             description: status defines the observed state of BuildRun
             properties:
               builderRef:
-                description: BuilderRef is the name of the kpack Build or Kaniko Pod
-                  doing the work
+                description: BuilderRef is the name of the Job doing the work
+                type: string
+              builderVersion:
+                description: |-
+                  BuilderVersion is the Railpack release that planned a source build. Recorded because
+                  detection is the part of a source build that changes between releases: when a repository
+                  that built last week stops building, this is the first thing worth comparing.
                 type: string
               commitSha:
                 description: CommitSHA is the resolved git commit SHA for this build
@@ -167,6 +172,15 @@ spec:
               commitShortSha:
                 description: CommitShortSHA is the short (7-char) git commit SHA
                 type: string
+              detectedProviders:
+                description: |-
+                  DetectedProviders is what the builder decided this repository is, when it was built
+                  without a Dockerfile — "node", "python", "staticfile". Empty for a Dockerfile build,
+                  which detects nothing, and empty when the builder's output could not be read, because a
+                  wrong answer here is worse than none.
+                items:
+                  type: string
+                type: array
               finishedAt:
                 description: FinishedAt is when the build completed or failed
                 format: date-time

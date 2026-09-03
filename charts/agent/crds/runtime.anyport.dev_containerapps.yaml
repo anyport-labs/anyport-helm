@@ -230,6 +230,19 @@ spec:
                   - name
                   type: object
                 type: array
+              exposeToProjects:
+                description: |-
+                  ExposeToProjects names the projects allowed to reach this app's pods across the
+                  network-isolation baseline. Empty — the default — means no other project can.
+
+                  This is the answer to "my app in staging needs to call an app in shared", and it exists so
+                  that answer is never "turn isolation off for the cluster". One app, one list, both
+                  directions handled: the app's own namespace gains a policy admitting the named projects,
+                  and each named project's baseline gains egress to this namespace. See
+                  docs/network-isolation §5.
+                items:
+                  type: string
+                type: array
               image:
                 description: Image specifies the container image to run
                 type: string

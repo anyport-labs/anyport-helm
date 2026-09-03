@@ -140,16 +140,20 @@ spec:
                 type: object
               networkIsolation:
                 description: "NetworkIsolation controls whether the agent applies
-                  the per-project NetworkPolicy\nbaseline (docs/network-isolation).\n\n\toff
-                  \ — no policies are applied, and any previously applied baseline
-                  is removed.\n\tauto — apply the baseline to every project namespace
-                  on this cluster.\n\nDefaults to off. It stays opt-in until cross-project
-                  plugin bindings are wired through\n(plan Phase 3): enforcing before
-                  then would silently cut an app off from a database it\nis bound
-                  to in another project."
+                  the per-project NetworkPolicy\nbaseline (docs/network-isolation).\n\n\tauto
+                  — apply the baseline wherever the detected CNI is known to enforce
+                  NetworkPolicy.\n\ton   — apply it regardless of detection, for a
+                  CNI that enforces but we do not recognise.\n\toff  — apply nothing,
+                  and remove any baseline already applied. The kill switch.\n\nUnset
+                  means auto. Isolation is a property every project has, not a feature
+                  an operator\nopts into, so the empty value is the secure one; an
+                  app that legitimately needs to reach\nanother project's app is answered
+                  by sharing that app (spec.exposeToProjects), not by\nturning isolation
+                  off for the cluster."
                 enum:
                 - "off"
                 - auto
+                - "on"
                 type: string
               projectRef:
                 description: ProjectRef references the project this resource belongs

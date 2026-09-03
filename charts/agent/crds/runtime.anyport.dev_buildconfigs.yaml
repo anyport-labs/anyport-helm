@@ -84,12 +84,12 @@ spec:
                     additionalProperties:
                       type: string
                     description: |-
-                      BuildEnv is passed as environment variables into the Cloud Native Buildpacks
-                      lifecycle at build time (the buildpack counterpart to BuildArgs, which only apply to
-                      the Dockerfile/Kaniko path). Paketo buildpacks read `BP_*` vars from the build
-                      environment during detect/build — e.g. BP_WEB_SERVER=nginx + BP_WEB_SERVER_ROOT=dist
-                      makes a static SPA build produce an nginx web process instead of an unrunnable image.
-                      Ignored by the Dockerfile/Kaniko path.
+                      BuildEnv is the repository's build-time environment, used when building without a
+                      Dockerfile. It reaches the builder twice, because it is needed for two different things:
+                      to decide what the repository *is* (RAILPACK_SPA_OUTPUT_DIR makes a single-page app be
+                      served as a static site), and to run the build's own commands. It is delivered to the
+                      build as a mounted secret rather than a build argument, so a value cannot end up in an
+                      image layer. The Dockerfile path uses BuildArgs instead.
                     type: object
                   cacheEnabled:
                     type: boolean
