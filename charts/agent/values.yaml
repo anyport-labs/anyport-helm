@@ -136,18 +136,25 @@ ingress:
 # one workload whose death disconnects the whole cluster from the control plane. An unbounded
 # build job on the same node was enough to do it.
 #
-# Sized from measurement, not guesswork: the agent idles at ~3m CPU / 43Mi on a cluster of ~150
-# objects (see docs/cluster-resources). CPU is generous against its real usage because the agent
-# is I/O bound on watches and only spikes on reconnect storms and resyncs, where being throttled
-# is what turns a blip into a backlog.
+# Sized from measurement, not guesswork (see docs/cluster-resources). CPU is generous against its
+# real usage because the agent is I/O bound on watches and only spikes on reconnect storms and
+# resyncs, where being throttled is what turns a blip into a backlog: measured 4m idle, and still
+# 4m with 85 pods on the node.
 #
-# Memory is the one to raise on a large cluster. The manager's informer cache is cluster-wide and
-# unfiltered, so agent memory tracks total objects in the cluster rather than Anyport's own
-# footprint: budget 256Mi/1Gi past ~500 objects and 512Mi/2Gi past ~5,000.
+# The memory request is 192Mi rather than the 128Mi it used to be because the earlier figure came
+# from a k3d cluster and did not survive contact with a real one. On a bare k3s node the agent
+# idles at ~100Mi on an empty cluster, so 128Mi left it running at 78% of its own request before
+# anything was deployed — technically Burstable, practically an eviction candidate the moment the
+# node came under pressure, which is the exact failure this block exists to prevent.
+#
+# Memory is still the one to raise on a large cluster, but not for the reason the informer cache
+# suggests: measured growth is ~0.07Mi per pod (100Mi at 15 pods, 103Mi at 85), so pod count is
+# not the driver at small scale. Secrets are — which is why Helm release history mattered so much
+# (docs/cluster-resources §2.1). Budget 256Mi/1Gi past ~500 objects and 512Mi/2Gi past ~5,000.
 resources:
   requests:
     cpu: 100m
-    memory: 128Mi
+    memory: 192Mi
   limits:
     cpu: 500m
     memory: 512Mi

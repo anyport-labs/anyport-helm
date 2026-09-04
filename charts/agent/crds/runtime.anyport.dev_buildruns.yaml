@@ -92,6 +92,33 @@ spec:
                     type: boolean
                   dockerfilePath:
                     type: string
+                  resources:
+                    description: |-
+                      Resources optionally overrides the build container's resource envelope. Unset means the
+                      envelope is derived from the cluster's own nodes at trigger time.
+                    properties:
+                      cpuRequest:
+                        description: CPURequest is the CPU reserved for the build,
+                          e.g. "500m".
+                        type: string
+                      ephemeralStorageLimit:
+                        description: EphemeralStorageLimit is the ceiling past which
+                          the build is evicted for disk, e.g. "20Gi".
+                        type: string
+                      ephemeralStorageRequest:
+                        description: |-
+                          EphemeralStorageRequest is the disk reserved for the build's context, layer cache and
+                          snapshot store, e.g. "4Gi".
+                        type: string
+                      memoryLimit:
+                        description: MemoryLimit is the ceiling past which the build
+                          is OOM-killed, e.g. "4Gi".
+                        type: string
+                      memoryRequest:
+                        description: MemoryRequest is the memory reserved for the
+                          build, e.g. "1Gi".
+                        type: string
+                    type: object
                   targetStage:
                     type: string
                 type: object
