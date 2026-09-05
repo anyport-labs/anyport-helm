@@ -120,16 +120,10 @@ webhook:
   certName: "tls.crt"
   certKey: "tls.key"
 
-ingress:
-  enabled: false
-  className: ""
-  annotations: {}
-  hosts:
-    - host: chart-example.local
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-  tls: []
+# No ingress block. The agent's observability endpoint is published by the cluster controller
+# instead (docs/direct-observability): its hostname is assigned by the console after install and
+# changes with the cluster's public domain, so it cannot be templated here. A chart-managed Ingress
+# on the same Service would now collide with the reconciled one.
 
 # Declared rather than left empty, which is what this used to be. With no requests the agent is
 # BestEffort QoS — the first thing the kubelet evicts under node pressure — and the agent is the

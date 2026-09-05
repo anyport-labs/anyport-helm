@@ -56,6 +56,30 @@ spec:
               description:
                 description: Description provides additional context about the resource
                 type: string
+              directObservability:
+                description: |-
+                  DirectObservability controls whether this cluster serves its own logs and metrics to the
+                  browser instead of relaying them through the console (docs/direct-observability).
+
+                  Unset means off, unlike NetworkIsolation: this one publishes an endpoint from a process
+                  holding cluster-admin, so it is something an operator opts into rather than a property every
+                  cluster has. The console only offers it where it can work at all — a public cluster whose
+                  domain and wildcard certificate are already in place.
+                enum:
+                - "off"
+                - "on"
+                type: string
+              directObservabilityHost:
+                description: |-
+                  DirectObservabilityHost is the hostname that endpoint serves on.
+
+                  Carried from the console for the same reason RegistryHost is: it is built from console-side
+                  state, and a cluster holding a wildcard for its own zone *and* one for a customer's custom
+                  domain gives the agent two candidates with nothing to choose between them.
+
+                  Derived on every apply rather than stored, so a push that rebuilds the CR from the database
+                  cannot blank it — the failure RegistryHost's comment records.
+                type: string
               displayName:
                 description: DisplayName is a human-readable name for the resource
                 type: string
