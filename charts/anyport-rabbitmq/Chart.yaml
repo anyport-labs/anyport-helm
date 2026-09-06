@@ -13,7 +13,7 @@ type: application
 
 # version   = the chart's own version (bump on any chart change).
 # appVersion = the default RabbitMQ series this chart installs (values.yaml image.tag).
-version: 0.0.11
+version: 0.0.14
 appVersion: "4.1"
 
 home: https://github.com/anyport-labs/anyport
