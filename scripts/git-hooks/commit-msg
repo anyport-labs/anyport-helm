@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Strips AI-assistant attribution from a commit message before it lands.
+#
+# Anyport does not carry generated-by markers on the remote (see CLAUDE.md). Tools that write
+# commits append them by default, so the ban only holds if something enforces it — this does,
+# by editing the message rather than rejecting it, so a slip costs nothing to correct.
+#
+# Installed by scripts/install-git-hooks.sh.
+set -euo pipefail
+
+msg_file="$1"
+
+# Trailers naming an assistant, and the "Generated with <tool>" footer in either of its forms.
+# Deliberately narrow: a commit whose subject merely mentions Claude is a real commit, not a
+# marker, so only these exact shapes are removed.
+filter='
+  /^[Cc]o-[Aa]uthored-[Bb]y:.*([Cc]laude|[Aa]nthropic|noreply@anthropic\.com)/d
+  /^🤖 [Gg]enerated with/d
+  /^[Gg]enerated with \[Claude/d
+'
+
+before=$(cat "$msg_file")
+after=$(printf '%s\n' "$before" | sed -E "$filter")
+
+if [ "$before" = "$after" ]; then
+  exit 0
+fi
+
+# Drop the blank lines the removed trailers left behind at the end.
+printf '%s\n' "$after" | awk 'BEGIN{n=0} {lines[n++]=$0} END{while(n>0 && lines[n-1]=="") n--; for(i=0;i<n;i++) print lines[i]}' > "$msg_file"
+
+echo "commit-msg: removed assistant attribution from the commit message" >&2
