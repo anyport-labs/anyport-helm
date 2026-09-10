@@ -66,6 +66,14 @@ env:
   # Use TLS for gRPC (recommended for production; set false for local dev / NodePort)
   grpcUseTls: true
   logLevel: "info"
+  # Apply an app's declared CPU/memory limits, not just its requests.
+  #
+  # Requests are always applied. Limits are held back because no app's limit reached a pod
+  # before agent v0.0.16, so the numbers in existing specs have never been tested against what
+  # the app really uses, and enforcing one that is too small OOMKills the container. Turn this
+  # on for one cluster, watch it, then turn it on everywhere.
+  applyResourceLimits: false
+
   # Automatic HTTPS. When true, the agent creates a Let's Encrypt PRODUCTION ClusterIssuer
   # using the cert-manager that the agent already requires (for its admission webhook), so
   # routes get trusted certificates with no manual TLS secrets. Requires an ingress

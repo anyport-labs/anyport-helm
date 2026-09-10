@@ -129,6 +129,10 @@ spec:
             - name: LOG_LEVEL
               value: {{ .Values.env.logLevel | quote }}
             {{- end }}
+            {{- if .Values.env.applyResourceLimits }}
+            - name: ANYPORT_APPLY_RESOURCE_LIMITS
+              value: "true"
+            {{- end }}
             {{- if .Values.env.autoHttps }}
             # Agent creates a Let's Encrypt ClusterIssuer (reusing the already-required
             # cert-manager) so routes get automatic HTTPS with no manual TLS secrets.
