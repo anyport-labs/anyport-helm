@@ -451,6 +451,14 @@ spec:
                     items:
                       type: string
                     type: array
+                  loadBalancerProvider:
+                    description: |-
+                      LoadBalancerProvider is what would answer a Service of type LoadBalancer: "servicelb"
+                      (k3s/k3d, free), "metallb" (free), "cloud" (the node's cloud provider, which bills per load
+                      balancer), "unknown" (addresses get assigned but by nothing recognisable) or "none" (such a
+                      Service sits Pending forever). The console uses it to choose, ask or refuse how a public
+                      port is exposed (docs/competitive-gaps §3).
+                    type: string
                   networkPolicyEnforced:
                     description: |-
                       NetworkPolicyEnforced reports whether the detected CNI actually enforces NetworkPolicy.
@@ -465,6 +473,14 @@ spec:
                       actions from whoever reads them. "Your projects are not isolated" is also a claim a user is
                       entitled to check rather than take.
                     type: string
+                  nodeExternalIps:
+                    description: |-
+                      NodeExternalIPs are the nodes' external addresses, where a NodePort answers from outside.
+                      Empty when the cluster reports none (a k3d node, a bare server with one interface); the
+                      console falls back to NodeInternalIPs then, which on such a machine is the public one.
+                    items:
+                      type: string
+                    type: array
                   nodeInternalIps:
                     description: |-
                       NodeInternalIPs lists the internal IPs of cluster nodes. Allowed as ingress in project

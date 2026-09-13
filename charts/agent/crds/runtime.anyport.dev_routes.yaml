@@ -52,6 +52,36 @@ spec:
             type: string
           metadata:
             type: object
+          portStatus:
+            description: |-
+              portStatus holds the observed public listener of a TCP or UDP route: the addresses and port
+              it answers on. Nil for HTTP routes.
+            properties:
+              addresses:
+                description: |-
+                  Addresses are the public IPs or hostnames the port answers on: the load balancer's, or
+                  every node's with NodePort.
+                items:
+                  type: string
+                type: array
+              message:
+                description: Message provides a human-readable description of the
+                  current phase
+                type: string
+              phase:
+                description: Phase is Pending | Ready | Failed
+                type: string
+              port:
+                description: Port is the public port, repeated here so a status row
+                  is complete on its own.
+                format: int32
+                type: integer
+              protocol:
+                description: Protocol is TCP or UDP, repeated for the same reason.
+                type: string
+            required:
+            - phase
+            type: object
           spec:
             description: spec defines the desired state of Route
             properties:
@@ -98,8 +128,21 @@ spec:
               displayName:
                 description: DisplayName is a human-readable name for the resource
                 type: string
+              exposure:
+                description: |-
+                  Exposure is how a port route reaches the internet: LoadBalancer asks the cluster for an
+                  address (free under ServiceLB or MetalLB, a billed load balancer on a managed cloud);
+                  NodePort opens the port on every node's own address. Required for TCP and UDP routes: the
+                  console chooses or asks based on what the cluster reports it can do.
+                enum:
+                - ;LoadBalancer
+                - NodePort
+                type: string
               host:
-                description: Host specifies the domain name for the route
+                description: |-
+                  Host specifies the domain name for the route. Required for HTTP routes; empty for port routes.
+                  Serialized without omitempty so the console's schema keeps it non-null: an empty string
+                  is the TCP case, and every existing client reads it as such.
                 type: string
               labels:
                 additionalProperties:
@@ -109,9 +152,29 @@ spec:
               path:
                 description: Path specifies the URL path for the route
                 type: string
+              port:
+                description: |-
+                  Port is the public port a TCP or UDP route listens on. Required for those, unused otherwise.
+                  Unique per cluster among port routes. With exposure NodePort it has to sit inside the
+                  cluster's node port range, 30000–32767 by default.
+                format: int32
+                maximum: 65535
+                minimum: 1
+                type: integer
               projectRef:
                 description: ProjectRef references the project this resource belongs
                   to
+                type: string
+              protocol:
+                description: |-
+                  Protocol is HTTP (the default when empty), TCP or UDP. An HTTP route is an Ingress on a
+                  hostname; a TCP or UDP route is a public port that reaches the backend Service directly, for
+                  protocols an HTTP ingress cannot carry (raw gRPC, MQTT, game servers, DNS, brokers). Port
+                  routes need a cluster with a public address; the console refuses them on a private one.
+                enum:
+                - ;HTTP
+                - TCP
+                - UDP
                 type: string
               rules:
                 description: Rules specifies the routing rules for the route
@@ -179,7 +242,6 @@ spec:
                 type: object
             required:
             - backend
-            - host
             type: object
           status:
             description: status defines the observed state of Route
