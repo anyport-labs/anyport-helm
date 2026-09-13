@@ -208,6 +208,16 @@ spec:
                 items:
                   type: string
                 type: array
+              exposedPorts:
+                description: |-
+                  ExposedPorts are the TCP ports the built image declares (EXPOSE, base images included),
+                  read from its config in the registry once the push completed. Empty when the image
+                  declares none or the registry could not be read — an unknown is reported as nothing,
+                  never as a guess, because the console adopts what is reported here as the app's port.
+                items:
+                  format: int32
+                  type: integer
+                type: array
               finishedAt:
                 description: FinishedAt is when the build completed or failed
                 format: date-time
