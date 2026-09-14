@@ -19,6 +19,9 @@ image:
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
+  # Pins the image by digest instead of tag when set (sha256:...). The one-click rollout sets it
+  # from the console's digest pin; leave it empty for a tag-addressed install.
+  digest: ""
 
 imagePullSecrets: []
 nameOverride: ""
