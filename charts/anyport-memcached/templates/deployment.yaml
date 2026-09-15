@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "anyport-memcached.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "anyport-memcached.labels" . | nindent 4 }}
+spec:
+  # Read as-is, never defaulted: the platform pauses the service by setting this to 0, and a
+  # `default 1` would turn that into a pause that reports success while the pod keeps running.
+  replicas: {{ .Values.replicaCount }}
+  # A cache holds nothing worth two copies of; one pod at a time keeps the memory bill honest.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "anyport-memcached.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "anyport-memcached.labels" . | nindent 8 }}
+    spec:
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: memcached
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          args:
+            - -m
+            - {{ .Values.memoryMB | quote }}
+            - -c
+            - {{ .Values.maxConnections | quote }}
+            - -I
+            - {{ .Values.maxItemSize | quote }}
+            {{- range .Values.extraArgs }}
+            - {{ . | quote }}
+            {{- end }}
+          ports:
+            - name: memcached
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: memcached
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            tcpSocket:
+              port: memcached
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

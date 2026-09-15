@@ -1,0 +1,55 @@
+# One process, or zero. Memcached does not replicate: a second replica would be a second,
+# independent cache behind the same Service, and clients hashing keys across servers expect to
+# be handed every server address, not one that round-robins. The value exists so the platform
+# can pause the service by setting it to 0, and is read as-is so that 0 is honoured.
+replicaCount: 1
+
+image:
+  repository: memcached
+  tag: "1.6-alpine"
+  pullPolicy: IfNotPresent
+
+service:
+  port: 11211
+
+# Memory the cache may hold, in megabytes (memcached -m). Kept below the container limit so the
+# process's own overhead — connection buffers, the hash table — fits beside the items.
+memoryMB: 192
+
+# Connections the server accepts at once (memcached -c). The daemon's default is 1024, which a
+# framework fleet keeping persistent connections open exhausts quietly.
+maxConnections: 4096
+
+# Largest item the cache stores (memcached -I). The daemon's default is 1m, and a rendered HTML
+# fragment or a serialised session can be larger than that.
+maxItemSize: 4m
+
+# Extra daemon flags, appended verbatim.
+extraArgs: []
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 256Mi
+
+# The official image runs as the `memcache` user; nothing here needs root or a writable
+# filesystem.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 11211
+  runAsGroup: 11211
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+extraLabels: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+terminationGracePeriodSeconds: 30

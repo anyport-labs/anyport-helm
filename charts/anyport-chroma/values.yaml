@@ -1,0 +1,70 @@
+# anyport-chroma default values.
+#
+# Every value here is addressable as a flat `--set` scalar, because the console pushes
+# HelmApp.Spec.Values as map[string]string through strvals.ParseInto. Nothing in this chart
+# requires a multi-line YAML value.
+
+# Pods to run: 1 normally, 0 when the platform has paused the service. Not a scaling knob — the
+# single-node server keeps its collections in an embedded SQLite database on the volume, and a
+# second replica would be a second, empty database behind the same Service. Read as-is so that 0
+# is honoured.
+replicaCount: 1
+
+image:
+  # The official image, which since 1.0 is the Rust server (`chroma run /config.yaml`). Tags are
+  # exact releases; Chroma publishes no floating series tag.
+  repository: chromadb/chroma
+  tag: "1.5.9"
+  pullPolicy: IfNotPresent
+
+service:
+  port: 8000
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 1Gi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+persistence:
+  # Where the server keeps everything: the SQLite catalogue and every collection's HNSW index.
+  # Handed to the server as CHROMA_PERSIST_PATH, which the 1.x config loader reads over the
+  # image's own /config.yaml, so the mount and the setting cannot drift apart.
+  mountPath: /data
+  size: 10Gi
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  # `helm uninstall` never deletes a volumeClaimTemplate PVC itself, so without this the cluster
+  # keeps a volume nobody is tracking and a same-named reinstall adopts a stranger's collections.
+  # The platform also deletes the PVC explicitly on teardown (StorageSpec in
+  # domain/plugins/catalog.go); this is the belt to that braces, and the only one that works when
+  # a release is removed outside Anyport. Kubernetes >= 1.27; older clusters ignore the field.
+  whenDeleted: Delete
+  whenScaled: Retain
+
+# The image sets no user, so it runs as root unless told otherwise. Verified against 1.5.9: the
+# server runs as an arbitrary uid on a read-only root filesystem, needing only the data volume
+# (fsGroup makes it writable) and a scratch /tmp — SQLite fails with "disk I/O error" the moment
+# it cannot find a temp directory, so the StatefulSet mounts an emptyDir there.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# Extra labels applied to every object (used by collectors to scope what they pick up).
+extraLabels: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+# SQLite commits are short; what needs the time is an HNSW index being flushed after a large
+# upsert. Kubernetes' default is enough.
+terminationGracePeriodSeconds: 30

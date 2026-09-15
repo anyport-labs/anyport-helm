@@ -1,0 +1,40 @@
+{{/*
+The stable ClusterIP Service apps connect to. Its name is the release name, which is what
+domain/plugins/chroma.go builds the connection secret's HOST from — keep the two in step.
+*/}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "anyport-chroma.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "anyport-chroma.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+  selector:
+    {{- include "anyport-chroma.selectorLabels" . | nindent 4 }}
+---
+{{/* Headless Service required by the StatefulSet for stable pod DNS. */}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "anyport-chroma.headlessName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "anyport-chroma.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+  selector:
+    {{- include "anyport-chroma.selectorLabels" . | nindent 4 }}

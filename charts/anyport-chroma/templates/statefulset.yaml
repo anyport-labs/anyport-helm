@@ -1,0 +1,102 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "anyport-chroma.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "anyport-chroma.labels" . | nindent 4 }}
+spec:
+  # Single node, or zero. The 1.x single-node server is an embedded SQLite database plus HNSW
+  # indexes on local disk; it has no replication, so a second replica would be a second, empty
+  # store answering the same Service. Read as-is, never defaulted: the platform pauses the service
+  # by setting this to 0, and a `default 1` would turn that into a pause that reports success
+  # while the pod keeps running.
+  replicas: {{ .Values.replicaCount }}
+  serviceName: {{ include "anyport-chroma.headlessName" . }}
+  selector:
+    matchLabels:
+      {{- include "anyport-chroma.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "anyport-chroma.labels" . | nindent 8 }}
+    spec:
+      # The server never talks to the Kubernetes API.
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: chroma
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          env:
+            # The 1.x server reads CHROMA_<KEY> over its config file, so this names the volume's
+            # mount rather than trusting the image's /config.yaml to keep saying /data.
+            - name: CHROMA_PERSIST_PATH
+              value: {{ .Values.persistence.mountPath | quote }}
+            - name: CHROMA_PORT
+              value: {{ .Values.service.port | quote }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          # Readiness asks whether the query executor is up, not merely whether the port answers:
+          # /healthcheck reports is_executor_ready, /heartbeat only that the process is alive.
+          readinessProbe:
+            httpGet:
+              path: /api/v2/healthcheck
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /api/v2/heartbeat
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.persistence.mountPath }}
+            # SQLite needs a temp directory even when the database lives elsewhere; on the
+            # read-only root filesystem this is the only writable one.
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: {{ .Values.persistence.whenDeleted | default "Delete" }}
+    whenScaled: {{ .Values.persistence.whenScaled | default "Retain" }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          {{- include "anyport-chroma.labels" . | nindent 10 }}
+      spec:
+        accessModes:
+          - {{ .Values.persistence.accessMode }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size }}
+        {{- if .Values.persistence.storageClass }}
+        storageClassName: {{ .Values.persistence.storageClass }}
+        {{- end }}

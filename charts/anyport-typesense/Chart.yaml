@@ -1,0 +1,26 @@
+apiVersion: v2
+name: anyport-typesense
+description: >
+  Typesense provisioned by Anyport's managed-services catalog.
+
+  First-party because Typesense publishes no Helm chart of its own, and the console's Helm
+  values pipeline passes flat `--set` scalars, which this chart's value shape is designed for.
+type: application
+
+# version   = the chart's own version, released in lockstep with the agent chart from one tag.
+# appVersion = the Typesense version this chart installs by default (values.yaml image.tag).
+version: 0.0.25
+appVersion: "30.2"
+
+home: https://github.com/anyport-labs/anyport
+sources:
+  - https://github.com/anyport-labs/anyport
+
+keywords:
+  - anyport
+  - typesense
+  - search
+
+maintainers:
+  - name: abdheshnayak
+    url: https://github.com/anyport-labs

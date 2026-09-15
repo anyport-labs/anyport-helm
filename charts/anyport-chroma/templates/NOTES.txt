@@ -1,0 +1,10 @@
+{{ .Chart.Name }} {{ .Chart.Version }} installed as release "{{ .Release.Name }}".
+
+In-cluster address:
+  http://{{ include "anyport-chroma.fullname" . }}.{{ .Release.Namespace }}.svc:{{ .Values.service.port }}
+
+No credentials: the 1.x Chroma server ships no authentication of its own, and this chart does
+not add any. It is reachable only from the project namespace under Anyport's network isolation
+baseline, which is the boundary the service relies on.
+
+Storage: {{ .Values.persistence.size }} at {{ .Values.persistence.mountPath }}{{ if .Values.persistence.storageClass }} on {{ .Values.persistence.storageClass }}{{ end }}

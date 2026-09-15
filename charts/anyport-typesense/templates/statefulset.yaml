@@ -1,0 +1,112 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "anyport-typesense.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "anyport-typesense.labels" . | nindent 4 }}
+spec:
+  # Single node, or zero. Typesense clusters through Raft with a peers file naming every member,
+  # which is a different install from this one and out of scope here.
+  #
+  # Read as-is, never defaulted: the platform pauses the service by setting this to 0, and a
+  # `default 1` would turn that into a pause that reports success while the pod keeps running.
+  replicas: {{ .Values.replicaCount }}
+  serviceName: {{ include "anyport-typesense.headlessName" . }}
+  selector:
+    matchLabels:
+      {{- include "anyport-typesense.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "anyport-typesense.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "anyport-typesense.fullname" . }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: typesense
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          # No --api-key: the server reads TYPESENSE_API_KEY from its environment, and the flag
+          # would put the credential in argv, where every `ps` and pod spec can read it.
+          args:
+            - --data-dir=/data
+            - --listen-port={{ .Values.service.port }}
+            - --enable-cors
+            {{- range .Values.extraArgs }}
+            - {{ . | quote }}
+            {{- end }}
+          env:
+            - name: TYPESENSE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "anyport-typesense.authSecret" . }}
+                  key: {{ .Values.auth.existingSecretKey }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          # /health answers 503 until the index is loaded, so readiness is the server's own word
+          # rather than a TCP accept — a node still replaying its data holds the port open.
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 5
+          # The whole index is rebuilt in memory from disk on every start, and a large collection
+          # takes minutes. The startup probe gives that time without the liveness probe killing
+          # the pod mid-load — the classic "big index never comes back up" failure.
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 120
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: {{ .Values.persistence.whenDeleted | default "Delete" }}
+    whenScaled: {{ .Values.persistence.whenScaled | default "Retain" }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          {{- include "anyport-typesense.labels" . | nindent 10 }}
+      spec:
+        accessModes:
+          - {{ .Values.persistence.accessMode }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size }}
+        {{- if .Values.persistence.storageClass }}
+        storageClassName: {{ .Values.persistence.storageClass }}
+        {{- end }}

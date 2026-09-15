@@ -60,6 +60,16 @@ spec:
                   type: string
                 description: Annotations for additional metadata
                 type: object
+              args:
+                description: |-
+                  Args are passed to the image's own entrypoint verbatim, with no shell in between. For
+                  images whose entrypoint is a CLI that needs a subcommand and ships no default one —
+                  Keycloak's kc.sh needs "start" — where StartCommand's "/bin/sh -c" wrapper would reach
+                  that CLI as its arguments. Exclusive with StartCommand; StartCommand wins when both are
+                  set, since it is the older field and the one the console form edits.
+                items:
+                  type: string
+                type: array
               autoscaling:
                 description: |-
                   Autoscaling configures horizontal pod autoscaling (HPA). When set, the controller

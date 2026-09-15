@@ -1,0 +1,86 @@
+# anyport-typesense default values.
+#
+# Every value here is addressable as a flat `--set` scalar, because the console pushes
+# HelmApp.Spec.Values as map[string]string through strvals.ParseInto. Nothing in this chart
+# requires a multi-line YAML value.
+
+# Pods to run: 1 normally, 0 when the platform has paused the service. Not a scaling knob — this
+# chart is single-node by design (see the StatefulSet), and a second replica would be a separate
+# server with its own empty index rather than a cluster member. Read as-is so that 0 is honoured.
+replicaCount: 1
+
+# Set by the platform to the instance name. The release name already is that name, so the
+# override changes nothing here; it exists so the console can pin every chart's names the same
+# way (ProvisioningRecipe.PinFullname in domain/plugins/catalog.go).
+fullnameOverride: ""
+
+image:
+  # The official image: Ubuntu plus one static binary at /opt/typesense-server, declaring no
+  # user of its own. Tags are bare version numbers; the multi-arch tag carries amd64 and arm64.
+  repository: typesense/typesense
+  tag: "30.2"
+  pullPolicy: IfNotPresent
+
+auth:
+  # Name of an existing secret holding the API key. Required — this chart never generates
+  # credentials, because the platform owns them (domain.InstallPlugin writes
+  # typesense-auth-<instance> before provisioning, so the key lands only in-cluster and never in
+  # MongoDB). Handed to the server as the TYPESENSE_API_KEY environment variable, which it reads
+  # natively, so the key is never on the command line.
+  existingSecret: ""
+  existingSecretKey: api-key
+
+service:
+  port: 8108
+
+# Extra server flags, appended verbatim after the ones the chart sets.
+extraArgs: []
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi
+
+persistence:
+  # Not optional. Typesense serves from an in-memory index but every write goes to RocksDB
+  # under the data directory, and that is what the index is rebuilt from on start — without a
+  # volume, a restart is an empty search engine.
+  size: 10Gi
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  # `helm uninstall` never deletes a volumeClaimTemplate PVC itself, so without this the cluster
+  # keeps a volume nobody is tracking and a same-named reinstall adopts a stranger's index. The
+  # platform also deletes the PVC explicitly on teardown (StorageSpec in
+  # domain/plugins/catalog.go); this is the belt to that braces, and the only one that works when
+  # a release is removed outside Anyport. Kubernetes >= 1.27; older clusters ignore the field.
+  whenDeleted: Delete
+  # Scaling down is not a teardown — a pause is a scale to zero, and the index must be there
+  # when the service resumes.
+  whenScaled: Retain
+
+# The image runs as root only because it declares no user: the binary needs nothing root can do,
+# so it runs as an arbitrary unprivileged uid and fsGroup makes the volume writable. Verified
+# against typesense/typesense:30.2 with a read-only root filesystem and every capability dropped.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# Extra labels applied to every object (used by collectors to scope what they pick up).
+extraLabels: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+terminationGracePeriodSeconds: 30

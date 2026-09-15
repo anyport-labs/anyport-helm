@@ -1,0 +1,20 @@
+{{/*
+The ClusterIP Service apps connect to. Its name is the release name, which is what
+domain/plugins/catalog.go builds the connection secret's HOST from — keep the two in step.
+*/}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "anyport-memcached.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "anyport-memcached.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: memcached
+      port: {{ .Values.service.port }}
+      targetPort: memcached
+      protocol: TCP
+  selector:
+    {{- include "anyport-memcached.selectorLabels" . | nindent 4 }}

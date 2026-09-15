@@ -21,9 +21,9 @@ There is no third-party chart this catalog can use:
 ## Licence
 
 RabbitMQ is **MPL-2.0** — file-level copyleft with no service clause, so neither Anyport nor a
-customer running it takes on an obligation by offering it to their own users. That is why this
-card exists while Kafka and Redpanda do not: Strimzi is Apache-2.0 but is a multi-CR operator,
-and Redpanda is BSL.
+customer running it takes on an obligation by offering it to their own users. Redpanda is BSL
+and has no card for that reason; Kafka's card runs on Strimzi (Apache-2.0), which became
+installable once a definition could render more than one CR.
 
 ## Single node, on purpose
 

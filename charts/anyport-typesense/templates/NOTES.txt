@@ -1,0 +1,11 @@
+{{ .Chart.Name }} {{ .Chart.Version }} installed as release "{{ .Release.Name }}".
+
+In-cluster address:
+  http://{{ include "anyport-typesense.fullname" . }}.{{ .Release.Namespace }}.svc:{{ .Values.service.port }}
+
+API key: the `{{ .Values.auth.existingSecretKey }}` key of secret "{{ .Values.auth.existingSecret }}",
+sent as the X-TYPESENSE-API-KEY header. Mint scoped search-only keys from it for anything that
+runs in a browser.
+
+Data: /data on the "data" volume ({{ .Values.persistence.size }}). The index is rebuilt from it
+on every start.

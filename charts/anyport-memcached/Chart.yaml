@@ -1,0 +1,28 @@
+apiVersion: v2
+name: anyport-memcached
+description: >
+  Memcached provisioned by Anyport's managed-services catalog.
+
+  First-party for the same reason as anyport-redis: Bitnami's chart is a dead pin, and the
+  console's Helm values pipeline passes flat `--set` scalars, which this chart's value shape is
+  designed for.
+type: application
+
+# version   = the chart's own version, released in lockstep with the agent chart from one tag.
+# appVersion = the Memcached series this chart installs (values.yaml image.tag).
+version: 0.0.25
+appVersion: "1.6"
+
+home: https://github.com/anyport-labs/anyport
+sources:
+  - https://github.com/anyport-labs/anyport
+
+keywords:
+  - anyport
+  - memcached
+  - cache
+  - key-value
+
+maintainers:
+  - name: abdheshnayak
+    url: https://github.com/anyport-labs

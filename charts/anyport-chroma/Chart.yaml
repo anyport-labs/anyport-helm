@@ -1,0 +1,31 @@
+apiVersion: v2
+name: anyport-chroma
+description: >
+  Chroma vector database provisioned by Anyport's managed-services catalog. Single node on a
+  volume, with the server's own embedded SQLite catalogue and HNSW indexes.
+
+  First-party because Chroma publishes no chart of its own — the only Kubernetes chart in
+  circulation is a community one built around the pre-1.0 Python server and its authentication
+  environment, none of which the 1.x Rust server reads. The console's Helm values pipeline also
+  passes flat `--set` scalars, which this chart's value shape is designed for.
+type: application
+
+# version   = the chart's own version, released in lockstep with the agent chart from one tag.
+# appVersion = the Chroma series this chart installs (values.yaml image.tag).
+version: 0.0.25
+appVersion: "1.5"
+
+home: https://github.com/anyport-labs/anyport
+sources:
+  - https://github.com/anyport-labs/anyport
+
+keywords:
+  - anyport
+  - chroma
+  - chromadb
+  - vector
+  - embeddings
+
+maintainers:
+  - name: abdheshnayak
+    url: https://github.com/anyport-labs

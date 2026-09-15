@@ -1,0 +1,10 @@
+{{ .Chart.Name }} {{ .Chart.Version }} installed as release "{{ .Release.Name }}".
+
+In-cluster address:
+  {{ include "anyport-memcached.fullname" . }}.{{ .Release.Namespace }}.svc:{{ .Values.service.port }}
+
+No credentials: Memcached authenticates nothing, and this chart does not change that. It is
+reachable only from the project namespace under Anyport's network isolation baseline, which is
+the boundary the service relies on.
+
+Cache memory: {{ .Values.memoryMB }} MB / max item {{ .Values.maxItemSize }} / {{ .Values.maxConnections }} connections
