@@ -106,6 +106,17 @@ spec:
               displayName:
                 description: DisplayName is a human-readable name for the resource
                 type: string
+              entrypoint:
+                description: |-
+                  Entrypoint replaces the image's own ENTRYPOINT, verbatim and with no shell. The exception
+                  to StartCommand's rule, for the images whose entrypoint ignores what it is given —
+                  pgAdmin's runs its setup and execs gunicorn whatever the arguments say — so nothing can
+                  be run before it without swapping it out. StartCommand or Args still become the
+                  arguments, now of this program. Empty keeps the image's entrypoint, which is right for
+                  every buildpack-built image.
+                items:
+                  type: string
+                type: array
               env:
                 description: |-
                   Env defines environment variables for the container.
