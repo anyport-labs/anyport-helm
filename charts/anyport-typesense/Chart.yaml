@@ -9,7 +9,7 @@ type: application
 
 # version   = the chart's own version, released in lockstep with the agent chart from one tag.
 # appVersion = the Typesense version this chart installs by default (values.yaml image.tag).
-version: 0.0.27
+version: 0.0.29
 appVersion: "30.2"
 
 home: https://github.com/anyport-labs/anyport
