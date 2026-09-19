@@ -12,8 +12,8 @@ type: application
 #   immutable, published agent image tag (e.g. v0.1.0) — releases publish the
 #   image first, then bump this. Kept in lockstep with constants.RecommendedAgentVersion
 #   on the platform side. See docs/agent-rollout/RELEASE.md.
-version: 0.0.30
-appVersion: "v0.0.30"
+version: 0.0.31
+appVersion: "v0.0.31"
 
 home: https://github.com/anyport-labs/anyport
 sources:
