@@ -783,6 +783,36 @@ spec:
                     same shape a BuildRun would need. Timestamps are RFC3339 strings, matching EventInfo, so the
                     status stays plain JSON the console can render without a type in between.
                   properties:
+                    events:
+                      description: |-
+                        Events are the Warning events of a failed run's pods, captured while the pod still
+                        exists: the pod is pruned with the Job, and with it the only explanation of an OOM, a pull
+                        failure or a node that could not fit it.
+                      items:
+                        description: EventInfo holds recent Warning events for the
+                          resource's workload (best-effort).
+                        properties:
+                          count:
+                            format: int32
+                            type: integer
+                          lastSeen:
+                            type: string
+                          message:
+                            type: string
+                          object:
+                            type: string
+                          reason:
+                            type: string
+                        required:
+                        - reason
+                        type: object
+                      type: array
+                    exitCode:
+                      description: |-
+                        ExitCode is the main container's, when the pod reported one. A Job condition says a run
+                        failed; the exit code is the first thing the person who wrote the command asks for.
+                      format: int32
+                      type: integer
                     finishedAt:
                       type: string
                     name:
