@@ -269,6 +269,15 @@ spec:
                 description: ProjectRef references the project this resource belongs
                   to
                 type: string
+              secretVariables:
+                description: |-
+                  SecretVariables names the variables whose values are secret. The values are never on this
+                  object: the console keeps them sealed and delivers them to the project's namespace as the
+                  anyport-project-variables Secret, which an environment variable reads at pod start.
+                  Anywhere else — an image, a host, a chart value — a reference to one is refused.
+                items:
+                  type: string
+                type: array
               sourceProjectRef:
                 description: |-
                   SourceProjectRef names a parent project on the same cluster.
