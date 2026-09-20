@@ -100,6 +100,51 @@ spec:
                 description: ClusterRef references the cluster where this resource
                   is deployed
                 type: string
+              dependencies:
+                description: |-
+                  Dependencies are the services and sibling apps this app reads credentials or addresses
+                  from. The controller holds the rollout — the pre-deploy Job and the Deployment update —
+                  until every required one is ready, so a copied stack starts in order instead of running
+                  migrations against a database that is seconds from existing.
+
+                  Derived from Env and SecretRefs on every save, like ValueRefs, and never authored: the
+                  picker that wires a reference is how a dependency is declared. See docs/stack-dependencies.
+                items:
+                  description: Dependency is one thing an app waits for before its
+                    rollout proceeds.
+                  properties:
+                    connectionSecret:
+                      description: |-
+                        ConnectionSecret is the Secret a service publishes HOST and PORT in, read to find the
+                        Service whose endpoints decide readiness. Set for kind service.
+                      type: string
+                    kind:
+                      description: DependencyKind says what a Dependency names.
+                      enum:
+                      - service
+                      - app
+                      type: string
+                    name:
+                      description: Name is the service instance's or the app's name
+                        in its own project.
+                      type: string
+                    namespace:
+                      description: |-
+                        Namespace is where the dependency lives when that is not this app's namespace: a service
+                        shared from another project, or a reused app reached through an alias.
+                      type: string
+                    required:
+                      description: |-
+                        Required holds the rollout until the dependency is ready, however long that takes. False
+                        for a sibling app: its address is known before it runs, so the edge is an ordering
+                        preference that yields once the sibling is ready, failing, or has stopped making progress.
+                      type: boolean
+                  required:
+                  - kind
+                  - name
+                  - required
+                  type: object
+                type: array
               description:
                 description: Description provides additional context about the resource
                 type: string
@@ -754,6 +799,31 @@ spec:
                   - reason
                   type: object
                 type: array
+              hold:
+                description: Hold is what the rollout is waiting for, nil when nothing
+                  holds it. Optional.
+                properties:
+                  blocked:
+                    description: Blocked is true when the dependency is failing rather
+                      than still coming up.
+                    type: boolean
+                  kind:
+                    description: Kind is service or app.
+                    type: string
+                  name:
+                    type: string
+                  reason:
+                    description: Reason is the hold in the user's terms.
+                    type: string
+                  since:
+                    description: |-
+                      Since is when this dependency first held the rollout, RFC3339. Kept across reconciles so
+                      the grace and the deadline are measured from the first hold, not the last look.
+                    type: string
+                required:
+                - kind
+                - name
+                type: object
               message:
                 type: string
               nextRunAt:

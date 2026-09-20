@@ -197,6 +197,31 @@ spec:
                   - reason
                   type: object
                 type: array
+              hold:
+                description: Hold is what the rollout is waiting for, nil when nothing
+                  holds it. Optional.
+                properties:
+                  blocked:
+                    description: Blocked is true when the dependency is failing rather
+                      than still coming up.
+                    type: boolean
+                  kind:
+                    description: Kind is service or app.
+                    type: string
+                  name:
+                    type: string
+                  reason:
+                    description: Reason is the hold in the user's terms.
+                    type: string
+                  since:
+                    description: |-
+                      Since is when this dependency first held the rollout, RFC3339. Kept across reconciles so
+                      the grace and the deadline are measured from the first hold, not the last look.
+                    type: string
+                required:
+                - kind
+                - name
+                type: object
               message:
                 type: string
               nextRunAt:
