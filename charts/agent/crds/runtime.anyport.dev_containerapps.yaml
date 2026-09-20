@@ -264,6 +264,36 @@ spec:
                 items:
                   type: string
                 type: array
+              git:
+                description: |-
+                  Git records the commit the running image was built from, for an app deployed from a
+                  repository. The console writes it when a build rolls out and clears it when the image is
+                  set by hand; nobody edits it. The controller hands it to the container as ANYPORT_GIT_*,
+                  the way Railway and Vercel expose the deploying commit, so a process can report its own
+                  version without the build baking it into the image. Nil for an image pulled from a registry.
+                properties:
+                  branch:
+                    description: Branch is the branch the build config tracks.
+                    type: string
+                  commitAuthor:
+                    description: CommitAuthor is who authored the commit, when the
+                      trigger carried it.
+                    type: string
+                  commitMessage:
+                    description: CommitMessage is the commit's message, when the trigger
+                      carried it.
+                    type: string
+                  commitSha:
+                    description: CommitSHA is the full commit the build checked out.
+                    type: string
+                  repoName:
+                    description: RepoName is the repository name without its owner.
+                    type: string
+                  repoOwner:
+                    description: RepoOwner is the account or organization the repository
+                      belongs to.
+                    type: string
+                type: object
               image:
                 description: Image specifies the container image to run
                 type: string

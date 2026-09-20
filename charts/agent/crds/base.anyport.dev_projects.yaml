@@ -278,6 +278,16 @@ spec:
                 items:
                   type: string
                 type: array
+              sharedFromProject:
+                description: |-
+                  SharedFromProject names the project on this cluster whose services or apps this one reaches
+                  directly, because it was duplicated reusing them: the copy holds the source's connection
+                  secrets and alias Services rather than instances of its own. Set by Anyport, never by a user.
+
+                  Under network isolation the agent opens the two namespaces to each other one way — this
+                  project's egress and the source's ingress — so what was reused stays reachable. Empty for a
+                  project that reuses nothing.
+                type: string
               sourceProjectRef:
                 description: |-
                   SourceProjectRef names a parent project on the same cluster.
