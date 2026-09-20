@@ -208,6 +208,10 @@ spec:
                 items:
                   type: string
                 type: array
+              exitCode:
+                description: ExitCode is the build container's, when it ran at all.
+                format: int32
+                type: integer
               exposedPorts:
                 description: |-
                   ExposedPorts are the TCP ports the built image declares (EXPOSE, base images included),
@@ -218,6 +222,12 @@ spec:
                   format: int32
                   type: integer
                 type: array
+              failureCause:
+                description: |-
+                  FailureCause is why a failed build failed, as one word the console branches on for its
+                  advice — out-of-memory, evicted, unschedulable, image-pull, deadline, exit. Empty when the
+                  pod could not say. See outils.ContainerCause.
+                type: string
               finishedAt:
                 description: FinishedAt is when the build completed or failed
                 format: date-time
@@ -228,6 +238,11 @@ spec:
                 type: string
               logStreamID:
                 description: LogStreamID is used to stream live logs from the pod
+                type: string
+              memoryLimit:
+                description: |-
+                  MemoryLimit is the build container's memory limit, named so an out-of-memory failure can
+                  say what to raise.
                 type: string
               message:
                 description: Message contains additional error or progress information
