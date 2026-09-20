@@ -10,7 +10,7 @@ type: application
 
 # version   = the chart's own version, released in lockstep with the agent chart from one tag.
 # appVersion = the Memcached series this chart installs (values.yaml image.tag).
-version: 0.0.36
+version: 0.0.37
 appVersion: "1.6"
 
 home: https://github.com/anyport-labs/anyport

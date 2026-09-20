@@ -49,6 +49,52 @@ spec:
           spec:
             description: ClusterSpec defines the desired state of Cluster
             properties:
+              builds:
+                description: |-
+                  Builds bounds the cluster's build pool (docs/build-queue). Nil derives everything from the
+                  cluster's nodes, which is what a first cluster gets.
+                properties:
+                  capacityPercent:
+                    description: |-
+                      CapacityPercent is the share of the cluster's allocatable CPU and memory that all builds
+                      together may request at once. 0 means the default, 25.
+                    maximum: 100
+                    minimum: 0
+                    type: integer
+                  maxParallel:
+                    description: |-
+                      MaxParallel caps how many builds run at once. 0 derives it from the capacity and the
+                      build size; an explicit value is honoured only as far as the capacity fits.
+                    minimum: 0
+                    type: integer
+                  resources:
+                    description: |-
+                      Resources is the build size every build config inherits unless it overrides it. Nil
+                      means the node-derived default. Field by field, like the per-config override.
+                    properties:
+                      cpuRequest:
+                        description: CPURequest is the CPU reserved for the build,
+                          e.g. "500m".
+                        type: string
+                      ephemeralStorageLimit:
+                        description: EphemeralStorageLimit is the ceiling past which
+                          the build is evicted for disk, e.g. "20Gi".
+                        type: string
+                      ephemeralStorageRequest:
+                        description: |-
+                          EphemeralStorageRequest is the disk reserved for the build's context, layer cache and
+                          snapshot store, e.g. "4Gi".
+                        type: string
+                      memoryLimit:
+                        description: MemoryLimit is the ceiling past which the build
+                          is OOM-killed, e.g. "4Gi".
+                        type: string
+                      memoryRequest:
+                        description: MemoryRequest is the memory reserved for the
+                          build, e.g. "1Gi".
+                        type: string
+                    type: object
+                type: object
               clusterRef:
                 description: ClusterRef references the cluster where this resource
                   is deployed
@@ -200,6 +246,41 @@ spec:
           status:
             description: ClusterStatus defines the observed state of Cluster
             properties:
+              builds:
+                description: |-
+                  Builds is the resolved build pool, written by the agent so the console shows the numbers
+                  the agent actually admits against rather than re-deriving them.
+                properties:
+                  capacityCpu:
+                    description: CapacityCPU and CapacityMemory are what all builds
+                      together may request at once.
+                    type: string
+                  capacityMemory:
+                    type: string
+                  maxParallel:
+                    description: MaxParallel is the effective slot count after derivation
+                      and clamping.
+                    type: integer
+                  parallelClamped:
+                    description: ParallelClamped is true when the pinned MaxParallel
+                      exceeded what the capacity holds.
+                    type: boolean
+                  perBuildCpu:
+                    description: |-
+                      PerBuildCPU and PerBuildMemory are what one build of the inherited size requests;
+                      PerBuildMemoryLimit is its ceiling.
+                    type: string
+                  perBuildMemory:
+                    type: string
+                  perBuildMemoryLimit:
+                    type: string
+                  queued:
+                    type: integer
+                  running:
+                    description: Running and Queued count the builds admitted and
+                      waiting right now.
+                    type: integer
+                type: object
               checksCompleted:
                 type: string
               conditions:

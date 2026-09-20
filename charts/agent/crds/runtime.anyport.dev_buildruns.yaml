@@ -250,6 +250,28 @@ spec:
               phase:
                 description: Phase is the current state of the build
                 type: string
+              queuePosition:
+                description: |-
+                  QueuePosition is 1-based while the run waits for a build slot (docs/build-queue), 0 once
+                  it has one. Position 1 is next.
+                type: integer
+              queuedAt:
+                description: |-
+                  QueuedAt is when the run started waiting for a slot. StartedAt stays "when the Job was
+                  created", so the two together separate queue time from build time.
+                format: date-time
+                type: string
+              reserved:
+                description: |-
+                  Reserved is what this run requests from the build capacity, recorded at admission so
+                  the pool is summed from what was granted rather than re-derived from a node survey that
+                  may have changed since.
+                properties:
+                  cpu:
+                    type: string
+                  memory:
+                    type: string
+                type: object
               startedAt:
                 description: StartedAt is when the build began
                 format: date-time
