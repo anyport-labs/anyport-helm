@@ -64,8 +64,8 @@ spec:
                 description: |-
                   Args are passed to the image's own entrypoint verbatim, with no shell in between. For
                   images whose entrypoint is a CLI that needs a subcommand and ships no default one —
-                  Keycloak's kc.sh needs "start" — where StartCommand's "/bin/sh -c" wrapper would reach
-                  that CLI as its arguments. Exclusive with StartCommand; StartCommand wins when both are
+                  Keycloak's kc.sh needs "start" — where StartCommand's shell mode would reach that CLI as
+                  the arguments of a shell. Exclusive with StartCommand; StartCommand wins when both are
                   set, since it is the older field and the one the console form edits.
                 items:
                   type: string
@@ -696,13 +696,16 @@ spec:
                 type: array
               startCommand:
                 description: |-
-                  StartCommand overrides the process the container runs, as a single shell command
-                  (e.g. "npx serve dist -l $PORT"). Only the container's args are overridden — the
-                  image's own entrypoint is left untouched, so buildpack-built images still run through
-                  the CNB launcher (preserving its env/PATH setup) instead of bypassing it. Needed for
-                  buildpack-built images with no default process type (e.g. a Vite/static app with no
-                  Procfile or "start" script), which otherwise fail at launch with "determine start
-                  command: when there is no default process a command is required".
+                  StartCommand overrides the process the container runs, as a single command line
+                  (e.g. "npx serve dist -l $PORT"). StartCommandMode decides how it reaches the container.
+                type: string
+              startCommandMode:
+                description: |-
+                  StartCommandMode says how StartCommand reaches the container. Empty means "shell", so an
+                  app that predates the field never changes the way it starts.
+                enum:
+                - shell
+                - exec
                 type: string
               startupProbe:
                 description: |-
