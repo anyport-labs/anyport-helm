@@ -144,6 +144,36 @@ spec:
                   Serialized without omitempty so the console's schema keeps it non-null: an empty string
                   is the TCP case, and every existing client reads it as such.
                 type: string
+              keyedHost:
+                description: |-
+                  KeyedHost also serves this route on its base route's hostname, for requests carrying Key in
+                  the X-Anyport-Preview header. Set only on a preview's copy of a route; Host stays the copy's
+                  own URL. See docs/preview-environments/PHASE-9-header-routing.md.
+                  No omitempty, for the same reason as SetupLock: clearing it must reach the cluster.
+                  Never authored through the API: only the preview path sets it, or any member could point a
+                  route at another project's hostname.
+                properties:
+                  baseRoute:
+                    description: BaseRoute is the route this one follows, in the base
+                      project's namespace.
+                    properties:
+                      name:
+                        type: string
+                      namespace:
+                        type: string
+                    required:
+                    - name
+                    - namespace
+                    type: object
+                  key:
+                    description: |-
+                      Key is the routing key a request must carry to reach this route instead of the base route.
+                      An address, not a credential.
+                    type: string
+                required:
+                - baseRoute
+                - key
+                type: object
               labels:
                 additionalProperties:
                   type: string
