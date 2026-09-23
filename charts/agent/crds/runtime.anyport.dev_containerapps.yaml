@@ -240,16 +240,31 @@ spec:
                                   to this app's project.
                                 type: string
                               key:
-                                description: 'Key is the address to read: HOST, PORT
-                                  or URL.'
+                                description: 'Key is the address to read: HOST, PORT,
+                                  URL, PUBLIC_HOST or PUBLIC_URL.'
                                 type: string
                             required:
                             - app
                             - key
                             type: object
+                          clusterRef:
+                            description: |-
+                              ClusterRef points at something derived from the cluster this project runs on rather than
+                              at anything inside it — the hostname its generated URLs sit under. Resolved to Literal for
+                              the same reason an AppRef is: it is an address, not a credential.
+                            properties:
+                              key:
+                                description: |-
+                                  Key is the property to read. DOMAIN is the only one: the hostname the cluster's generated
+                                  URLs sit under.
+                                type: string
+                            required:
+                            - key
+                            type: object
                           literal:
                             description: |-
-                              Literal is what an AppRef resolved to, substituted into the value by the controller.
+                              Literal is what an AppRef or ClusterRef resolved to, substituted into the value by the
+                              controller.
 
                               The one reference kind whose value is not read at pod start. Empty means the reference was
                               not resolved, and the controller drops the whole variable rather than exporting a value
@@ -598,15 +613,30 @@ spec:
                                       type: string
                                     key:
                                       description: 'Key is the address to read: HOST,
-                                        PORT or URL.'
+                                        PORT, URL, PUBLIC_HOST or PUBLIC_URL.'
                                       type: string
                                   required:
                                   - app
                                   - key
                                   type: object
+                                clusterRef:
+                                  description: |-
+                                    ClusterRef points at something derived from the cluster this project runs on rather than
+                                    at anything inside it — the hostname its generated URLs sit under. Resolved to Literal for
+                                    the same reason an AppRef is: it is an address, not a credential.
+                                  properties:
+                                    key:
+                                      description: |-
+                                        Key is the property to read. DOMAIN is the only one: the hostname the cluster's generated
+                                        URLs sit under.
+                                      type: string
+                                  required:
+                                  - key
+                                  type: object
                                 literal:
                                   description: |-
-                                    Literal is what an AppRef resolved to, substituted into the value by the controller.
+                                    Literal is what an AppRef or ClusterRef resolved to, substituted into the value by the
+                                    controller.
 
                                     The one reference kind whose value is not read at pod start. Empty means the reference was
                                     not resolved, and the controller drops the whole variable rather than exporting a value
