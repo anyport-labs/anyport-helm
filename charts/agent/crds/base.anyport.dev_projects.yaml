@@ -225,13 +225,6 @@ spec:
                         description: Enabled is the switch. Nil settings and false
                           mean the same thing.
                         type: boolean
-                      keySalt:
-                        description: |-
-                          KeySalt derives each preview's routing key together with its pull request number, so a key
-                          survives the preview being recreated. Generated when the switch is first turned on, kept when
-                          it is turned off, and replaced to rotate every key at once. Not a secret: a key is an address.
-                          Never authored through the API: the console generates and rotates it.
-                        type: string
                     required:
                     - enabled
                     type: object
