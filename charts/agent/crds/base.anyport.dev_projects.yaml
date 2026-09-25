@@ -216,6 +216,11 @@ spec:
                       accidental default for every project written before this field existed — and a preview
                       environment nobody reaps is the cost problem this whole phase exists to prevent.
                     type: integer
+                  expireAfterHours:
+                    description: |-
+                      ExpireAfterHours is ExpireAfterDays for windows shorter than a day. When set it wins over
+                      ExpireAfterDays, with the same nil/zero meaning.
+                    type: integer
                   keyedRoutes:
                     description: |-
                       KeyedRoutes also serves each preview on this project's own hostnames, for requests carrying
