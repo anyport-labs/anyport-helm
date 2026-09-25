@@ -276,6 +276,12 @@ spec:
                     type: string
                   queued:
                     type: integer
+                  runnerPriorityClass:
+                    description: |-
+                      RunnerPriorityClass is the PriorityClass GitHub Actions runner pods may name. Empty when
+                      the class does not exist, and a pod naming a missing class is rejected, so the console
+                      names it only when this is set.
+                    type: string
                   running:
                     description: Running and Queued count the builds admitted and
                       waiting right now.
