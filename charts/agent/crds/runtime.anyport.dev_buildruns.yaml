@@ -73,6 +73,96 @@ spec:
               buildParams:
                 description: BuildParams is the snapshot of build parameters
                 properties:
+                  buildArgRefs:
+                    additionalProperties:
+                      items:
+                        description: EnvValueRef is one ${{ source.KEY }} reference
+                          inside an EnvVar's Value.
+                        properties:
+                          appRef:
+                            description: |-
+                              AppRef points at a sibling container app instead of a credential, so cross-app addresses
+                              come from the platform rather than being typed in. Resolved to Literal, not to a secret:
+                              an app's address is derived and public, and routing it through a Secret would put a
+                              hostname in a credential store and make it unreadable in the console.
+                            properties:
+                              app:
+                                description: App is the container app's name, scoped
+                                  to this app's project.
+                                type: string
+                              key:
+                                description: 'Key is the address to read: HOST, PORT,
+                                  URL, PUBLIC_HOST or PUBLIC_URL.'
+                                type: string
+                            required:
+                            - app
+                            - key
+                            type: object
+                          clusterRef:
+                            description: |-
+                              ClusterRef points at something derived from the cluster this project runs on rather than
+                              at anything inside it — the hostname its generated URLs sit under. Resolved to Literal for
+                              the same reason an AppRef is: it is an address, not a credential.
+                            properties:
+                              key:
+                                description: |-
+                                  Key is the property to read. DOMAIN is the only one: the hostname the cluster's generated
+                                  URLs sit under.
+                                type: string
+                            required:
+                            - key
+                            type: object
+                          literal:
+                            description: |-
+                              Literal is what an AppRef or ClusterRef resolved to, substituted into the value by the
+                              controller.
+
+                              The one reference kind whose value is not read at pod start. Empty means the reference was
+                              not resolved, and the controller drops the whole variable rather than exporting a value
+                              with a hole in it — the same rule an unresolved SecretKeyRef follows.
+                            type: string
+                          ref:
+                            description: Ref is the exact reference text it replaces,
+                              e.g. `${{ orders-db.PASSWORD }}`.
+                            type: string
+                          secretKeyRef:
+                            description: SecretKeyRef is what the cluster reads. Resolved
+                              from ServiceRef by the console.
+                            properties:
+                              key:
+                                type: string
+                              name:
+                                type: string
+                            required:
+                            - key
+                            - name
+                            type: object
+                          serviceRef:
+                            description: |-
+                              ServiceRef is the user's intent, kept so a duplicated project re-resolves against its
+                              own service rather than the source project's. See EnvVarSource for why both exist.
+                            properties:
+                              key:
+                                description: Key is the output key the service publishes
+                                  (e.g. DATABASE_URL, HOST).
+                                type: string
+                              service:
+                                description: Service is the plugin instance name,
+                                  scoped to this app's project.
+                                type: string
+                            required:
+                            - key
+                            - service
+                            type: object
+                        required:
+                        - ref
+                        type: object
+                      type: array
+                    description: |-
+                      BuildArgRefs resolves the ${{ source.KEY }} references embedded in BuildArgs, keyed by
+                      build arg name, with the same shape and meaning as EnvVar.ValueRefs. Set by the console on
+                      a BuildRun when the build is triggered, never on a BuildConfig and never authored.
+                    type: object
                   buildArgs:
                     additionalProperties:
                       type: string
