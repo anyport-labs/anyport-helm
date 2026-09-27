@@ -80,6 +80,9 @@ env:
   # the app really uses, and enforcing one that is too small OOMKills the container. Turn this
   # on for one cluster, watch it, then turn it on everywhere.
   applyResourceLimits: false
+  # Services (HelmApps) installed or upgraded in parallel. Each holds a slot through Helm's
+  # readiness wait, so this many stuck services stall the rest. 0 uses the agent default (4).
+  helmAppWorkers: 0
 
   # Automatic HTTPS. When true, the agent creates a Let's Encrypt PRODUCTION ClusterIssuer
   # using the cert-manager that the agent already requires (for its admission webhook), so

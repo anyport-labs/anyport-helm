@@ -59,8 +59,8 @@ spec:
             properties:
               addresses:
                 description: |-
-                  Addresses are the public IPs or hostnames the port answers on: the load balancer's, or
-                  every node's with NodePort.
+                  Addresses are the public IPs or hostnames the port answers on: the load balancer's, every
+                  node's with NodePort, or the ingress controller's with Controller.
                 items:
                   type: string
                 type: array
@@ -132,11 +132,14 @@ spec:
                 description: |-
                   Exposure is how a port route reaches the internet: LoadBalancer asks the cluster for an
                   address (free under ServiceLB or MetalLB, a billed load balancer on a managed cloud);
-                  NodePort opens the port on every node's own address. Required for TCP and UDP routes: the
-                  console chooses or asks based on what the cluster reports it can do.
+                  NodePort opens the port on every node's own address; Controller carries it on the ingress
+                  controller's own address, as a Traefik entrypoint Anyport added to the Traefik it installed.
+                  Required for TCP and UDP routes: the console chooses or asks based on what the cluster
+                  reports it can do.
                 enum:
                 - ;LoadBalancer
                 - NodePort
+                - Controller
                 type: string
               host:
                 description: |-

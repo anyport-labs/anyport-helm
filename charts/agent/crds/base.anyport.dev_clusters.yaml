@@ -208,6 +208,26 @@ spec:
                       (overrides auto-pick).
                     type: string
                 type: object
+              ingress:
+                description: |-
+                  Ingress steers which ingress controller Anyport routes through while a guided switch moves
+                  the cluster from one controller to another (docs/platforms/cloudfleet/PHASE-7, 7.3). Empty
+                  on a cluster that is not switching: the agent detects its controller as it always has.
+                  Derived by the console on every apply from the switch it is running.
+                properties:
+                  preferredController:
+                    description: |-
+                      PreferredController is the controller routes go through when more than one is installed.
+                      Empty means the one detection finds, which is every cluster with a single controller.
+                    type: string
+                  shadowController:
+                    description: |-
+                      ShadowController also serves every route, beside the controller routes go through: each
+                      route gets a second Ingress of its class. It is what lets the public address move from one
+                      controller's load balancer to the other's with both answering for every app, so a resolver
+                      still holding the old address loses nothing. Never the controller routes go through.
+                    type: string
+                type: object
               networkIsolation:
                 description: "NetworkIsolation controls whether the agent applies
                   the per-project NetworkPolicy\nbaseline (docs/network-isolation).\n\n\tauto
@@ -488,6 +508,11 @@ spec:
                   reason:
                     description: 'Reason: Reused | Created | Provided | None'
                     type: string
+                  shadowIngressClass:
+                    description: |-
+                      ShadowIngressClass is the class every route is also served on while spec.ingress names a
+                      shadow controller whose IngressClass exists. Empty otherwise.
+                    type: string
                   wildcardCerts:
                     description: |-
                       WildcardCerts reports the shared wildcard certificates this cluster holds, and is how the
@@ -549,6 +574,26 @@ spec:
                     description: HasIngressController indicates if an ingress controller
                       is detected
                     type: boolean
+                  ingressAddresses:
+                    description: |-
+                      IngressAddresses are the external addresses of the ingress controller's own data-plane
+                      Service: where a public cluster is reached, and what its cluster hostname points at.
+                    items:
+                      description: IngressAddress is one external address of the ingress
+                        controller's data-plane Service.
+                      properties:
+                        address:
+                          description: Address is an IP address or, where the platform
+                            hands out names, a hostname.
+                          type: string
+                        family:
+                          description: Family is ipv4, ipv6 or hostname.
+                          type: string
+                      required:
+                      - address
+                      - family
+                      type: object
+                    type: array
                   ingressControllerNamespaces:
                     description: |-
                       IngressControllerNamespaces lists every namespace an ingress controller was found in.
@@ -600,6 +645,34 @@ spec:
                     items:
                       type: string
                     type: array
+                  nodeProviders:
+                    description: |-
+                      NodeProviders are the distinct clouds the platform reports nodes running on, such as
+                      "hetzner" or "gcp". Empty when the platform does not say.
+                    items:
+                      type: string
+                    type: array
+                  nodeRegions:
+                    description: |-
+                      NodeRegions are the distinct provider regions nodes run in; a platform that provisions one
+                      load balancer per region hands out one public address for each.
+                    items:
+                      type: string
+                    type: array
+                  nodesAutoscaled:
+                    description: |-
+                      NodesAutoscaled is true when nodes are created and removed by an autoscaler, so a node's
+                      address can change without anyone touching the cluster.
+                    type: boolean
+                  platform:
+                    description: |-
+                      Platform names whoever provides the cluster's Kubernetes when it is recognisable from the
+                      nodes, such as "cloudfleet". Empty means not recognised, not absent.
+                    type: string
+                  platformClusterId:
+                    description: PlatformClusterID is the platform's own identifier
+                      for this cluster.
+                    type: string
                   podCidrs:
                     description: PodCIDRs is the list of CIDRs used for pods
                     items:
@@ -626,6 +699,46 @@ spec:
                     items:
                       type: string
                     type: array
+                  shadowIngress:
+                    description: |-
+                      ShadowIngress is the controller spec.ingress.shadowController names, as this agent finds it:
+                      whether it is serving, and the addresses its own data-plane Service answers on. Nil when no
+                      shadow is asked for, or it is the controller routes already go through.
+                    properties:
+                      addresses:
+                        description: Addresses are its data-plane Service's external
+                          addresses; none for a ClusterIP Service.
+                        items:
+                          description: IngressAddress is one external address of the
+                            ingress controller's data-plane Service.
+                          properties:
+                            address:
+                              description: Address is an IP address or, where the
+                                platform hands out names, a hostname.
+                              type: string
+                            family:
+                              description: Family is ipv4, ipv6 or hostname.
+                              type: string
+                          required:
+                          - address
+                          - family
+                          type: object
+                        type: array
+                      classPresent:
+                        description: ClassPresent is whether its IngressClass exists,
+                          which is when routes are rendered on it.
+                        type: boolean
+                      controller:
+                        description: Controller is the detected name, as spec.ingress.shadowController
+                          gave it.
+                        type: string
+                      ready:
+                        description: Ready is whether at least one of its pods is
+                          ready to serve.
+                        type: boolean
+                    required:
+                    - controller
+                    type: object
                   tunnelIngressTarget:
                     description: |-
                       TunnelIngressTarget is the cluster-internal URL for the tunnel to route traffic to (e.g. http://ingress-nginx-controller.ingress-nginx.svc.cluster.local:80).
