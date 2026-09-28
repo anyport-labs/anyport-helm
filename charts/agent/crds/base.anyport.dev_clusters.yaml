@@ -129,6 +129,22 @@ spec:
               displayName:
                 description: DisplayName is a human-readable name for the resource
                 type: string
+              hosting:
+                description: |-
+                  Hosting marks a cluster Anyport or a hosting partner runs for the org (docs/shared-cluster):
+                  the agent renders hosted-mode pod defaults when it is set. Nil on every cluster an org
+                  attached, which keeps those byte-for-byte unchanged. Derived by the console on every apply.
+                properties:
+                  provider:
+                    description: Provider is "anyport" or "partner:<id>".
+                    type: string
+                  region:
+                    description: Region is the region id the cluster was created in,
+                      e.g. "eu-central".
+                    type: string
+                required:
+                - provider
+                type: object
               https:
                 description: HTTPS configures the cluster's automatic-HTTPS behaviour.
                 properties:

@@ -452,6 +452,12 @@ spec:
                   memory:
                     type: string
                 type: object
+              scheduledAt:
+                description: |-
+                  ScheduledAt is when the build's pod first got a node. The time before it, waiting in the
+                  queue or for a node with room, is not build time, and Anyport Cloud bills from here.
+                format: date-time
+                type: string
               startedAt:
                 description: StartedAt is when the build began
                 format: date-time
