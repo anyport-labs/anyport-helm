@@ -27,8 +27,8 @@ helm install anyport-agent ./agent --namespace anyport --create-namespace
 helm repo add jetstack https://charts.jetstack.io --force-update
 helm upgrade --install cert-manager jetstack/cert-manager \
   --namespace cert-manager --create-namespace \
-  --version v1.14.0 \
-  --set installCRDs=true \
+  --version v1.21.2 \
+  --set crds.enabled=true \
   --wait
 ```
 
@@ -114,7 +114,7 @@ If installation fails with cert-manager error, install it first:
 helm repo add jetstack https://charts.jetstack.io --force-update
 helm upgrade --install cert-manager jetstack/cert-manager \
   --namespace cert-manager --create-namespace \
-  --version v1.14.0 --set installCRDs=true --wait
+  --version v1.21.2 --set crds.enabled=true --wait
 ```
 
 ## Features
