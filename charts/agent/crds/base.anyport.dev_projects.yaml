@@ -204,6 +204,16 @@ spec:
                       An app not named here is copied, because a preview missing an app nobody asked to leave out
                       is a preview of the wrong thing — see docs/preview-environments/PHASE-8-scope-controls.md.
                     type: object
+                  creation:
+                    description: |-
+                      Creation decides whether a pull request gets its preview as it opens, or only once somebody
+                      asks for one from the pull request comment or the console. Empty means
+                      PreviewCreationAutomatic, so a project written before this field keeps what it had. See
+                      docs/preview-environments/PHASE-11-previews-on-request.md.
+                    enum:
+                    - automatic
+                    - onRequest
+                    type: string
                   enabled:
                     description: Enabled is the switch. Everything else has a default.
                     type: boolean
