@@ -1,0 +1,12 @@
+{{ .Chart.Name }} {{ .Chart.Version }} installed as release "{{ .Release.Name }}".
+
+In-cluster DevTools endpoint (Puppeteer browserURL, Playwright connectOverCDP, chromedp
+NewRemoteAllocator):
+  http://{{ include "anyport-chromium.fullname" . }}.{{ .Release.Namespace }}.svc:{{ .Values.service.port }}
+
+No credentials: the DevTools Protocol has no authentication, and this chart does not add any.
+It is reachable only from the project namespace under Anyport's network isolation baseline,
+which is the boundary the service relies on. The browser itself can fetch anything the
+namespace can reach.
+
+Browser: Chromium {{ .Values.image.tag }}, memory {{ .Values.resources.limits.memory }}

@@ -1,0 +1,94 @@
+# anyport-speaches default values.
+#
+# Every value here is addressable as a flat `--set` scalar, because the console pushes
+# HelmApp.Spec.Values as map[string]string through strvals.ParseInto. Nothing in this chart
+# requires a multi-line YAML value.
+
+# Pods to run: 1 normally, 0 when the platform has paused the service. Not a scaling knob — each
+# replica holds its own loaded models, so a second one doubles the memory without sharing any
+# work. Read as-is so that 0 is honoured.
+replicaCount: 1
+
+# Set by the platform to the instance name. The release name already is that name, so the
+# override changes nothing here; it exists so the console can pin every chart's names the same
+# way (ProvisioningRecipe.PinFullname in domain/plugins/catalog.go).
+fullnameOverride: ""
+
+image:
+  repository: ghcr.io/speaches-ai/speaches
+  # The Speaches release. The rendered tag is `<tag>-cpu`, or `<tag>-cuda` with gpu.enabled:
+  # upstream publishes both flavours of every release, multi-arch (amd64 and arm64).
+  tag: "0.8.3"
+  pullPolicy: IfNotPresent
+
+# The speech-to-text model fetched into the volume before the server starts (a Hugging Face
+# repository id of a faster-whisper model). Empty skips the fetch; models can always be added
+# later through POST /v1/models/{id}.
+model: Systran/faster-whisper-small
+
+# Schedules onto a node with an NVIDIA GPU: the cuda image flavour, one nvidia.com/gpu, and a
+# toleration for the taint GPU node pools usually carry. Needs the NVIDIA device plugin.
+gpu:
+  enabled: false
+
+auth:
+  # Name of an existing secret holding the API key. Required — this chart never generates
+  # credentials, because the platform owns them (domain.InstallPlugin writes
+  # speaches-auth-<instance> before provisioning, so the key lands only in-cluster and never in
+  # MongoDB). Handed to the server as API_KEY, which it reads natively.
+  existingSecret: ""
+  existingSecretKey: api-key
+
+service:
+  port: 8000
+
+logLevel: info
+
+# The catalog's size presets set these (domain/plugins/speaches.go). Memory request == limit: a
+# server evicted mid-transcription is a failed request.
+resources:
+  requests:
+    cpu: "1"
+    memory: 3Gi
+  limits:
+    cpu: "2"
+    memory: 3Gi
+
+persistence:
+  # The Hugging Face cache (HF_HOME): every downloaded model, speech-to-text and text-to-speech.
+  mountPath: /data
+  size: 10Gi
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  # `helm uninstall` never deletes a volumeClaimTemplate PVC itself, so without this the cluster
+  # keeps a volume nobody is tracking and a same-named reinstall adopts a stranger's models. The
+  # platform also deletes the PVC explicitly on teardown (StorageSpec in
+  # domain/plugins/catalog.go); this is the belt to that braces, and the only one that works when
+  # a release is removed outside Anyport. Kubernetes >= 1.27; older clusters ignore the field.
+  whenDeleted: Delete
+  # A pause is a scale to zero, and the models must be there when the service resumes.
+  whenScaled: Retain
+
+# The image's own user (ubuntu, 1000). Verified against 0.8.3-cpu on a read-only root filesystem
+# with every capability dropped: model fetch, transcription and text-to-speech need only the data
+# volume (fsGroup makes it writable) and a scratch /tmp.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# Extra labels applied to every object (used by collectors to scope what they pick up).
+extraLabels: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+terminationGracePeriodSeconds: 30

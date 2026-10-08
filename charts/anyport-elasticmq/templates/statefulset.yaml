@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "anyport-elasticmq.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "anyport-elasticmq.labels" . | nindent 4 }}
+spec:
+  # Single node, or zero. ElasticMQ has no clustering: every queue lives in one process's memory
+  # with an H2 journal on its own volume, so a second replica would be a second broker answering
+  # the same Service with different messages. Read as-is, never defaulted: the platform pauses the
+  # service by setting this to 0, and a `default 1` would turn that into a pause that reports
+  # success while the pod keeps running.
+  replicas: {{ .Values.replicaCount }}
+  serviceName: {{ include "anyport-elasticmq.headlessName" . }}
+  selector:
+    matchLabels:
+      {{- include "anyport-elasticmq.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "anyport-elasticmq.labels" . | nindent 8 }}
+      annotations:
+        # The config is read once at boot and mounted by subPath, which never sees an update, so a
+        # changed queue list has to roll the pod to take effect.
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      # The server never talks to the Kubernetes API.
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: elasticmq
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          ports:
+            - name: sqs
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          # The server's own health endpoint, served on the SQS port.
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: sqs
+            initialDelaySeconds: 2
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: sqs
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.persistence.mountPath }}
+            - name: config
+              mountPath: /opt/elasticmq.conf
+              subPath: elasticmq.conf
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "anyport-elasticmq.fullname" . }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: {{ .Values.persistence.whenDeleted | default "Delete" }}
+    whenScaled: {{ .Values.persistence.whenScaled | default "Retain" }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          {{- include "anyport-elasticmq.labels" . | nindent 10 }}
+      spec:
+        accessModes:
+          - {{ .Values.persistence.accessMode }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size }}
+        {{- if .Values.persistence.storageClass }}
+        storageClassName: {{ .Values.persistence.storageClass }}
+        {{- end }}

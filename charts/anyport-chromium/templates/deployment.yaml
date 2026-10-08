@@ -1,0 +1,121 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "anyport-chromium.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "anyport-chromium.labels" . | nindent 4 }}
+spec:
+  # Read as-is, never defaulted: the platform pauses the service by setting this to 0, and a
+  # `default 1` would turn that into a pause that reports success while the pod keeps running.
+  replicas: {{ .Values.replicaCount }}
+  # Every session ends with the old pod regardless, and two browsers at once would double the
+  # largest memory reservation in the project for the length of the roll.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "anyport-chromium.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "anyport-chromium.labels" . | nindent 8 }}
+      annotations:
+        checksum/proxy-config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      # Neither container talks to the Kubernetes API.
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: chromium
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          # The binary, not the image's run.sh: that script also starts a socat forwarder on
+          # 9222 that would expose the browser on the pod IP, beside the proxy.
+          command:
+            - /headless-shell/headless-shell
+          args:
+            # Chromium's own sandbox needs user namespaces or CAP_SYS_ADMIN, neither of which
+            # this pod grants. The pod's security context is the boundary instead.
+            - --no-sandbox
+            - --use-gl=angle
+            - --use-angle=swiftshader
+            - --remote-debugging-address=127.0.0.1
+            - --remote-debugging-port={{ .Values.debuggingPort }}
+          env:
+            # The image has no home directory for an arbitrary uid; fontconfig wants a writable
+            # cache under it and logs an error per font lookup without one.
+            - name: HOME
+              value: /tmp
+          # Probed through the proxy, so a ready pod is one a client can actually reach. A port
+          # number, not the proxy's port name: kubelet resolves names within this container only.
+          readinessProbe:
+            httpGet:
+              path: /json/version
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: 2
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /json/version
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            # The throwaway profile, downloads and caches. Gone with the pod, which is the point.
+            - name: tmp
+              mountPath: /tmp
+            # Container runtimes give /dev/shm 64Mi, and Chromium's renderers share frames
+            # through it — a heavy page crashes its tab long before memory runs out.
+            - name: shm
+              mountPath: /dev/shm
+        - name: proxy
+          image: "{{ .Values.proxy.image.repository }}:{{ .Values.proxy.image.tag }}"
+          imagePullPolicy: {{ .Values.proxy.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          ports:
+            - name: cdp
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.proxy.resources | nindent 12 }}
+          volumeMounts:
+            - name: proxy-config
+              mountPath: /etc/nginx/conf.d
+              readOnly: true
+            - name: proxy-tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: {{ .Values.resources.limits.memory }}
+        - name: proxy-config
+          configMap:
+            name: {{ include "anyport-chromium.proxyConfigName" . }}
+        - name: proxy-tmp
+          emptyDir: {}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

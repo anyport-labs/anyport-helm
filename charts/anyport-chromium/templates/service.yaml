@@ -1,0 +1,21 @@
+{{/*
+The ClusterIP Service apps connect to. Its name is the release name, which is what
+domain/plugins/chromium.go builds the connection secret's HOST from — keep the two in step.
+It fronts the proxy, never the browser: the browser listens on loopback only.
+*/}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "anyport-chromium.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "anyport-chromium.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: cdp
+      port: {{ .Values.service.port }}
+      targetPort: cdp
+      protocol: TCP
+  selector:
+    {{- include "anyport-chromium.selectorLabels" . | nindent 4 }}

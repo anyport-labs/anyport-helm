@@ -1,0 +1,14 @@
+{{ .Chart.Name }} {{ .Chart.Version }} installed as release "{{ .Release.Name }}".
+
+OpenAI-compatible base URL:
+  http://{{ include "anyport-speaches.fullname" . }}.{{ .Release.Namespace }}.svc:{{ .Values.service.port }}/v1
+
+API key: the `{{ .Values.auth.existingSecretKey }}` key of secret "{{ .Values.auth.existingSecret }}",
+sent as `Authorization: Bearer <key>`. Every API route asks for it, /health included.
+{{- if .Values.model }}
+
+Speech-to-text model: {{ .Values.model }}, fetched before the server started.
+{{- end }}
+Add others (text-to-speech included) with POST /v1/models/{id}; GET /v1/registry lists them.
+
+Models: {{ .Values.persistence.mountPath }} on the "data" volume ({{ .Values.persistence.size }}).

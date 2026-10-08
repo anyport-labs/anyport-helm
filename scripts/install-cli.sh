@@ -2,10 +2,10 @@
 # Install the Anyport CLI.
 #
 # Usage:
-#   curl -sfL https://anyport.dev/cli.sh | sh
-#   curl -sfL https://anyport.dev/cli.sh | sh -s -- --init        # then run `anyport init`
-#   curl -sfL https://anyport.dev/cli.sh | sh -s -- v0.1.0        # pin a version
-#   curl -sfL https://anyport.dev/cli.sh | ANYPORT_INSTALL_DIR=~/bin sh
+#   curl -fsSL https://anyport.dev/cli.sh | sh
+#   curl -fsSL https://anyport.dev/cli.sh | sh -s -- --init        # then run `anyport init`
+#   curl -fsSL https://anyport.dev/cli.sh | sh -s -- v0.1.0        # pin a version
+#   curl -fsSL https://anyport.dev/cli.sh | ANYPORT_INSTALL_DIR=~/bin sh
 #
 # POSIX sh only. This runs under `sh`, which is dash on Debian/Ubuntu: `set -o pipefail`
 # aborts the script on line 1 there, and `&>/dev/null` means "run in background".
@@ -73,7 +73,7 @@ esac
 if [ -z "$VERSION" ]; then
   log "Finding the latest release"
   VERSION=$(
-    curl -sfL "https://api.github.com/repos/${REPO}/releases?per_page=50" \
+    curl -sfL --retry 3 "https://api.github.com/repos/${REPO}/releases?per_page=50" \
       | grep '"tag_name"' \
       | sed -n 's/.*"tag_name": *"cli\/\(v[^"]*\)".*/\1/p' \
       | head -n 1
@@ -97,8 +97,15 @@ tmp=$(mktemp -d)
 # Leaving a half-downloaded archive in /tmp on failure helps nobody debug anything.
 trap 'rm -rf "$tmp"' EXIT INT TERM
 
+# Under `curl | sh` only stdin is the pipe, so stderr is still the terminal. A
+# silent download on a slow link is indistinguishable from a hang.
+progress="-sS"
+if [ -t 2 ]; then
+  progress="-#"
+fi
+
 log "Downloading anyport ${bare} (${os}/${arch})"
-if ! curl -sfL "${base}/${archive}" -o "${tmp}/${archive}"; then
+if ! curl -fL "$progress" --retry 3 "${base}/${archive}" -o "${tmp}/${archive}"; then
   err "no build for ${os}/${arch} at ${tag}"
   echo "See https://github.com/${REPO}/releases/tag/${tag}" >&2
   exit 1
@@ -106,7 +113,7 @@ fi
 
 # Verifying is the whole point of publishing checksums; a missing checksums file is
 # a broken release, not a reason to install something unverified.
-if curl -sfL "${base}/checksums.txt" -o "${tmp}/checksums.txt"; then
+if curl -sfL --retry 3 "${base}/checksums.txt" -o "${tmp}/checksums.txt"; then
   expected=$(grep " ${archive}\$" "${tmp}/checksums.txt" | awk '{print $1}')
   if [ -n "$expected" ]; then
     if command -v sha256sum >/dev/null 2>&1; then

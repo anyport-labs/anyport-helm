@@ -1,0 +1,83 @@
+# anyport-chromium default values.
+#
+# Every value here is addressable as a flat `--set` scalar, because the console pushes
+# HelmApp.Spec.Values as map[string]string through strvals.ParseInto. Nothing in this chart
+# requires a multi-line YAML value.
+
+# Pods to run: 1 normally, 0 when the platform has paused the service. Not a scaling knob — a
+# CDP session is pinned to the browser that created its pages, so a second replica behind the
+# same Service would hand a client's follow-up request to a browser that has never heard of it.
+# Read as-is so that 0 is honoured.
+replicaCount: 1
+
+image:
+  # chromedp's build of Chromium's headless shell: the browser without the desktop UI, ~150MB,
+  # amd64 and arm64. Tags are exact Chromium releases. Pinned rather than offered as a choice: a
+  # browser that loads arbitrary pages should move with security fixes, and the chart release is
+  # where that happens.
+  repository: chromedp/headless-shell
+  tag: "156.0.8078.12"
+  pullPolicy: IfNotPresent
+
+# Where the browser itself listens for DevTools. Loopback only: the proxy below is the only way
+# in, so nothing reaches the browser with a Host header it would refuse.
+debuggingPort: 9223
+
+proxy:
+  # Chromium refuses any DevTools request, HTTP or WebSocket, whose Host header is not an IP
+  # address or "localhost" — which is every client that connects by Service name. The proxy
+  # presents the loopback address to the browser and rewrites the WebSocket URLs it hands back
+  # (/json/version, /json/list) to the address the client actually used.
+  image:
+    repository: nginxinc/nginx-unprivileged
+    tag: "1.30-alpine"
+    pullPolicy: IfNotPresent
+  # A CDP connection is silent while the app is not driving the browser, and the proxy would
+  # otherwise close it after nginx's 60s default — an app that connects once at start-up would
+  # find its browser gone at the first lull.
+  idleTimeout: 24h
+  resources:
+    requests:
+      cpu: 10m
+      memory: 16Mi
+    limits:
+      cpu: 500m
+      memory: 64Mi
+
+service:
+  port: 9222
+
+# The browser's own budget. Memory is request AND limit; /dev/shm is a memory-backed volume
+# sized to the same limit, since what Chromium writes there is charged to the pod either way.
+resources:
+  requests:
+    cpu: 250m
+    memory: 1Gi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+# The image sets no user, so it runs as root unless told otherwise. Verified against
+# 156.0.8078.12: the browser and the proxy both run as an arbitrary uid on a read-only root
+# filesystem with every capability dropped, needing only a scratch /tmp each (the browser's
+# throwaway profile, nginx's pid and buffers).
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# Extra labels applied to every object (used by collectors to scope what they pick up).
+extraLabels: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+# Nothing to flush: open pages belong to clients that are being disconnected anyway.
+terminationGracePeriodSeconds: 10

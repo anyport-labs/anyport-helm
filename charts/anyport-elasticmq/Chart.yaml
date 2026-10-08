@@ -1,0 +1,31 @@
+apiVersion: v2
+name: anyport-elasticmq
+description: >
+  ElasticMQ, an Amazon SQS-compatible message queue, provisioned by Anyport's managed-services
+  catalog. Single node on a volume, with queues and messages journalled to an embedded H2
+  database so a restart loses neither.
+
+  First-party because ElasticMQ publishes no chart of its own, and the server is configured by
+  one HOCON file the console's flat `--set` values have to be rendered into.
+type: application
+
+# version   = the chart's own version, released in lockstep with the agent chart from one tag.
+# appVersion = the ElasticMQ release this chart installs (values.yaml image.tag).
+version: 0.0.63
+appVersion: "1.7.1"
+
+home: https://github.com/anyport-labs/anyport
+sources:
+  - https://github.com/anyport-labs/anyport
+  - https://github.com/softwaremill/elasticmq
+
+keywords:
+  - anyport
+  - elasticmq
+  - sqs
+  - queue
+  - messaging
+
+maintainers:
+  - name: abdheshnayak
+    url: https://github.com/anyport-labs

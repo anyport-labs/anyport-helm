@@ -1,0 +1,29 @@
+apiVersion: v2
+name: anyport-speaches
+description: >
+  Speaches (OpenAI-compatible speech-to-text on faster-whisper, and text-to-speech) provisioned
+  by Anyport's managed-services catalog. Single node, with downloaded models on a volume.
+
+  First-party because Speaches publishes no Helm chart of its own, and the console's Helm values
+  pipeline passes flat `--set` scalars, which this chart's value shape is designed for.
+type: application
+
+# version   = the chart's own version, released in lockstep with the agent chart from one tag.
+# appVersion = the Speaches release this chart installs by default (values.yaml image.tag).
+version: 0.0.63
+appVersion: "0.8.3"
+
+home: https://github.com/anyport-labs/anyport
+sources:
+  - https://github.com/anyport-labs/anyport
+
+keywords:
+  - anyport
+  - speaches
+  - whisper
+  - speech-to-text
+  - text-to-speech
+
+maintainers:
+  - name: abdheshnayak
+    url: https://github.com/anyport-labs

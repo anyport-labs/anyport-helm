@@ -1,0 +1,132 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "anyport-tei.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "anyport-tei.labels" . | nindent 4 }}
+spec:
+  # One pod, or zero. Read as-is, never defaulted: the platform pauses the service by setting this
+  # to 0, and a `default 1` would turn that into a pause that reports success while the pod keeps
+  # running.
+  replicas: {{ .Values.replicaCount }}
+  serviceName: {{ include "anyport-tei.headlessName" . }}
+  selector:
+    matchLabels:
+      {{- include "anyport-tei.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "anyport-tei.labels" . | nindent 8 }}
+    spec:
+      # The server never talks to the Kubernetes API.
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: tei
+          image: {{ include "anyport-tei.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          # Replaces the image's CMD, so --json-output is restated. --hostname is an argument
+          # rather than left to the environment: the server reads HOSTNAME as its listen address,
+          # and the runtime sets that variable to the pod's own name.
+          args:
+            - --json-output
+            - --hostname=0.0.0.0
+          env:
+            - name: MODEL_ID
+              value: {{ .Values.model.id | toString | quote }}
+            {{- with .Values.model.revision }}
+            - name: REVISION
+              value: {{ . | toString | quote }}
+            {{- end }}
+            - name: PORT
+              value: {{ .Values.service.port | quote }}
+            - name: HUGGINGFACE_HUB_CACHE
+              value: {{ .Values.persistence.mountPath | quote }}
+            - name: RAYON_NUM_THREADS
+              value: {{ .Values.threads | quote }}
+            - name: TOKENIZATION_WORKERS
+              value: {{ .Values.threads | quote }}
+            # Read natively, so the key is never on the command line. Every inference route then
+            # wants `Authorization: Bearer <key>`; /health, /metrics and the OpenAPI docs stay
+            # open, which is what lets the probes below run without it.
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "anyport-tei.authSecret" . }}
+                  key: {{ .Values.auth.existingSecretKey }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          # The server binds its port only once the model is downloaded and warmed up, and a
+          # multi-gigabyte model over a slow egress takes a long time. The startup probe allows
+          # 30 minutes — the catalog's ProgressDeadline for this service — before the liveness
+          # probe is allowed to kill a pod that is still downloading.
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 180
+          # /health runs the backend's own check, so readiness is the model answering, not the
+          # port being open.
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # A TCP check: a server saturated by a large batch answers /health late, and that is
+          # load, not a reason to restart it and pay the model load again.
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 5
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.persistence.mountPath }}
+            # The backend listens on a unix socket under /tmp; on the read-only root filesystem
+            # this is the only writable place for it.
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      nodeSelector:
+        {{- toYaml (merge (dict "kubernetes.io/arch" .Values.image.arch) (deepCopy .Values.nodeSelector)) | nindent 8 }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: {{ .Values.persistence.whenDeleted | default "Delete" }}
+    whenScaled: {{ .Values.persistence.whenScaled | default "Retain" }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          {{- include "anyport-tei.labels" . | nindent 10 }}
+      spec:
+        accessModes:
+          - {{ .Values.persistence.accessMode }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size }}
+        {{- if .Values.persistence.storageClass }}
+        storageClassName: {{ .Values.persistence.storageClass }}
+        {{- end }}

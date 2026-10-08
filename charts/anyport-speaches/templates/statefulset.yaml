@@ -1,0 +1,175 @@
+{{- $port := .Values.service.port -}}
+{{- $probe := printf "printf 'Authorization: Bearer %%s' \"$API_KEY\" | curl -fsS -o /dev/null -H @- http://127.0.0.1:%v/health" $port -}}
+{{- $resources := deepCopy .Values.resources -}}
+{{- if .Values.gpu.enabled -}}
+{{- /* An extended resource is asked for by its limit alone; Kubernetes sets the request to match. */ -}}
+{{- $limits := get $resources "limits" | default dict -}}
+{{- $_ := set $limits "nvidia.com/gpu" 1 -}}
+{{- $_ := set $resources "limits" $limits -}}
+{{- end -}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "anyport-speaches.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "anyport-speaches.labels" . | nindent 4 }}
+spec:
+  # Single node, or zero. Loaded models live in the process, so a second replica would be a
+  # second server loading its own copy behind the same Service, not a scaled one.
+  #
+  # Read as-is, never defaulted: the platform pauses the service by setting this to 0, and a
+  # `default 1` would turn that into a pause that reports success while the pod keeps running.
+  replicas: {{ .Values.replicaCount }}
+  serviceName: {{ include "anyport-speaches.headlessName" . }}
+  selector:
+    matchLabels:
+      {{- include "anyport-speaches.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "anyport-speaches.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "anyport-speaches.fullname" . }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- if .Values.model }}
+      # The server downloads nothing on its own: a transcription naming a model that is not on
+      # disk is a 404 until someone calls POST /v1/models/{id}. Fetching here, before the server
+      # starts, is what makes a fresh install transcribe with no manual step. It runs Speaches'
+      # own download function against the same cache the server reads, is a no-op once the files
+      # are on the volume (no network on a restart), and fails the pod with a message naming the
+      # model when it is not a faster-whisper one, rather than serving 404s.
+      initContainers:
+        - name: fetch-model
+          image: {{ include "anyport-speaches.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          command:
+            - python
+            - -c
+            - |
+              import sys
+              from speaches.executors.whisper.utils import model_registry
+              model = sys.argv[1]
+              model_registry.download_model_files_if_not_exist(model)
+              if model not in {m.id for m in model_registry.list_local_models()}:
+                  sys.exit(f"{model} is not a faster-whisper speech-to-text model; see GET /v1/registry?task=automatic-speech-recognition")
+              print(f"{model} ready")
+            - {{ .Values.model | quote }}
+          env:
+            - name: HF_HOME
+              value: {{ .Values.persistence.mountPath | quote }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.persistence.mountPath }}
+            - name: tmp
+              mountPath: /tmp
+      {{- end }}
+      containers:
+        - name: speaches
+          image: {{ include "anyport-speaches.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          env:
+            # With API_KEY set, every API route asks for `Authorization: Bearer <key>` — /health
+            # included, which is why the probes below send it.
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "anyport-speaches.authSecret" . }}
+                  key: {{ .Values.auth.existingSecretKey }}
+            # The Gradio UI is mounted beside the API, outside its key check, and transcribes
+            # with the server's own key — on, it would hand the service to anyone who can reach it.
+            - name: ENABLE_UI
+              value: "false"
+            # Models land under $HF_HOME/hub, which is the volume.
+            - name: HF_HOME
+              value: {{ .Values.persistence.mountPath | quote }}
+            - name: UVICORN_PORT
+              value: {{ $port | quote }}
+            # The upstream default is debug, which logs every request's internals.
+            - name: LOG_LEVEL
+              value: {{ .Values.logLevel | quote }}
+          ports:
+            - name: http
+              containerPort: {{ $port }}
+              protocol: TCP
+          # Exec rather than httpGet: /health sits behind the key, and an httpGet header would put
+          # the key in the pod spec. The header goes to curl on stdin, so it is not in argv either.
+          startupProbe:
+            exec:
+              command: ["sh", "-c", {{ $probe | quote }}]
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", {{ $probe | quote }}]
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # Generous: a long transcription holds a worker, and a liveness kill mid-request is a
+          # failed request that a retry repeats.
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", {{ $probe | quote }}]
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 5
+          resources:
+            {{- toYaml $resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.persistence.mountPath }}
+            # The only writable scratch space on the read-only root filesystem. Must allow exec:
+            # text-to-speech unpacks espeak-ng's shared library here and loads it.
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      {{- if .Values.gpu.enabled }}
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+        {{- with .Values.tolerations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- else }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: {{ .Values.persistence.whenDeleted | default "Delete" }}
+    whenScaled: {{ .Values.persistence.whenScaled | default "Retain" }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          {{- include "anyport-speaches.labels" . | nindent 10 }}
+      spec:
+        accessModes:
+          - {{ .Values.persistence.accessMode }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size }}
+        {{- if .Values.persistence.storageClass }}
+        storageClassName: {{ .Values.persistence.storageClass }}
+        {{- end }}

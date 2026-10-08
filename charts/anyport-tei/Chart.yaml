@@ -1,0 +1,31 @@
+apiVersion: v2
+name: anyport-tei
+description: >
+  Hugging Face Text Embeddings Inference provisioned by Anyport's managed-services catalog. One
+  model per release, downloaded from the Hugging Face Hub at start and cached on a volume, served
+  over TEI's own API and the OpenAI-compatible embeddings endpoint.
+
+  First-party because Hugging Face publishes no chart for it, and the console's Helm values
+  pipeline passes flat `--set` scalars, which this chart's value shape is designed for.
+type: application
+
+# version   = the chart's own version, released in lockstep with the agent chart from one tag.
+# appVersion = the TEI release this chart installs (values.yaml image.version).
+version: 0.0.63
+appVersion: "1.9.4"
+
+home: https://github.com/anyport-labs/anyport
+sources:
+  - https://github.com/anyport-labs/anyport
+  - https://github.com/huggingface/text-embeddings-inference
+
+keywords:
+  - anyport
+  - embeddings
+  - reranker
+  - huggingface
+  - text-embeddings-inference
+
+maintainers:
+  - name: abdheshnayak
+    url: https://github.com/anyport-labs

@@ -1,0 +1,85 @@
+# anyport-elasticmq default values.
+#
+# Every value here is addressable as a flat `--set` scalar, because the console pushes
+# HelmApp.Spec.Values as map[string]string through strvals.ParseInto. Lists are set one index at
+# a time (`queues[0]=orders`), never as a comma-joined string.
+
+# Pods to run: 1 normally, 0 when the platform has paused the service. Not a scaling knob — the
+# server keeps every queue in its own memory and journals to an H2 file on its own volume, so a
+# second replica would be a second, unrelated broker behind the same Service. Read as-is so that
+# 0 is honoured.
+replicaCount: 1
+
+image:
+  # The GraalVM native build: one static binary on Alpine, starts in milliseconds and idles at
+  # ~25MB, against a JVM image several times that. Tags are exact releases; there is no floating
+  # series tag (`1.7` is a 404).
+  repository: softwaremill/elasticmq-native
+  tag: "1.7.1"
+  pullPolicy: IfNotPresent
+
+service:
+  # The SQS API, and /health. The stats UI that used to listen on 9325 is a separate image since
+  # 1.7, and is not installed.
+  port: 9324
+
+# Queues created at start, by name. A name ending in `.fifo` is created as a FIFO queue. Queues
+# created later through the API persist as well; removing a name here does not delete its queue.
+queues: []
+
+# What the server stamps into queue ARNs. The catalog sets the same region it hands bound apps,
+# so an ARN an SDK computes (a redrive policy's deadLetterTargetArn) matches the one the server
+# reports.
+aws:
+  region: us-east-1
+  accountId: "000000000000"
+
+# `strict` refuses what real SQS refuses (message size, attribute counts, timeouts), so an app
+# that passes here does not fail on its first day against AWS. `relaxed` lifts those limits.
+sqsLimits: strict
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+persistence:
+  # The H2 journal of every queue and message. ElasticMQ still serves from memory; the journal is
+  # what it replays on start.
+  mountPath: /data
+  size: 5Gi
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  # `helm uninstall` never deletes a volumeClaimTemplate PVC itself, so without this the cluster
+  # keeps a volume nobody is tracking and a same-named reinstall adopts a stranger's messages.
+  # The platform also deletes the PVC explicitly on teardown (StorageSpec in
+  # domain/plugins/elasticmq.go); this is the only guard when a release is removed outside
+  # Anyport. Kubernetes >= 1.27; older clusters ignore the field.
+  whenDeleted: Delete
+  whenScaled: Retain
+
+# The image sets no user, so it runs as root unless told otherwise. Verified against 1.7.1: the
+# server runs as an arbitrary uid on a read-only root filesystem, needing only the data volume
+# (fsGroup makes it writable).
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# Extra labels applied to every object (used by collectors to scope what they pick up).
+extraLabels: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+# tini forwards SIGTERM and the server closes the journal cleanly well inside this.
+terminationGracePeriodSeconds: 30

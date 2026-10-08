@@ -1,0 +1,94 @@
+# anyport-tei default values.
+#
+# Every value here is addressable as a flat `--set` scalar, because the console pushes
+# HelmApp.Spec.Values as map[string]string through strvals.ParseInto. Nothing in this chart
+# requires a multi-line YAML value.
+
+# Pods to run: 1 normally, 0 when the platform has paused the service. Not a scaling knob — the
+# catalog sizes one pod, and the volume behind it is ReadWriteOnce. Read as-is so that 0 is
+# honoured.
+replicaCount: 1
+
+image:
+  repository: ghcr.io/huggingface/text-embeddings-inference
+  # The TEI release. The tag is built from this and `arch`: Hugging Face publishes the CPU build
+  # as two single-architecture tags, `cpu-<version>` (amd64 only) and `cpu-arm64-<version>`
+  # (arm64 only, from 1.9 on), rather than one multi-arch manifest.
+  version: "1.9.4"
+  # amd64 or arm64. Picks the tag above and pins the pod to nodes of that architecture, so a
+  # wrong choice is a Pending pod that says why, not an exec format error in a crash loop.
+  arch: amd64
+  pullPolicy: IfNotPresent
+
+model:
+  # A Hugging Face Hub repository id. Embedding, reranker and sequence-classification models all
+  # load; which endpoints answer depends on the model (/rerank refuses an embedding model).
+  id: BAAI/bge-small-en-v1.5
+  # A branch, tag or commit of that repository. Empty means the default branch.
+  revision: ""
+
+auth:
+  # Name of an existing secret holding the API key. Required — this chart never generates
+  # credentials, because the platform owns them (domain.InstallPlugin writes tei-auth-<instance>
+  # before provisioning, so the key lands only in-cluster and never in MongoDB). Handed to the
+  # server as the API_KEY environment variable, which it reads natively.
+  existingSecret: ""
+  existingSecretKey: api-key
+
+service:
+  # Not the image's 80: the server runs unprivileged with every capability dropped, and binding
+  # below 1024 needs one. Handed to the server as PORT.
+  port: 8080
+
+# Inference threads, and tokenizer workers alongside them. The image defaults to 8 inference
+# threads and one tokenizer per host core, which on a pod with a CPU limit of 1 or 2 is
+# throttling, not throughput — so this follows the CPU limit.
+threads: 1
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+persistence:
+  # The Hugging Face Hub cache (HUGGINGFACE_HUB_CACHE). Every model the service has been pointed
+  # at stays here, so changing back to an earlier model is a restart, not a download.
+  mountPath: /data
+  size: 10Gi
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  # `helm uninstall` never deletes a volumeClaimTemplate PVC itself, so without this the cluster
+  # keeps a volume nobody is tracking. The platform also deletes the PVC explicitly on teardown
+  # (StorageSpec in domain/plugins/tei.go); this is the belt to that braces, and the only one that
+  # works when a release is removed outside Anyport. Kubernetes >= 1.27; older clusters ignore it.
+  whenDeleted: Delete
+  # A pause is a scale to zero, and the downloaded model must be there when the service resumes.
+  whenScaled: Retain
+
+# The image declares no user, so it runs as root unless told otherwise. Verified against
+# cpu-1.9.4 and cpu-arm64-1.9.4: the server runs as an arbitrary uid on a read-only root
+# filesystem with every capability dropped, needing only the cache volume (fsGroup makes it
+# writable) and a scratch /tmp for the socket its backend listens on.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# Extra labels applied to every object (used by collectors to scope what they pick up).
+extraLabels: {}
+# Merged under the architecture pin, which always wins: the image only runs on one.
+nodeSelector: {}
+tolerations: []
+affinity: {}
+# Requests in flight finish within seconds; nothing is written on shutdown.
+terminationGracePeriodSeconds: 30

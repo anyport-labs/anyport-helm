@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "anyport-elasticmq.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "anyport-elasticmq.labels" . | nindent 4 }}
+data:
+  # Mounted over the image's own /opt/elasticmq.conf, which its entrypoint names with
+  # -Dconfig.file. Keys left out fall back to the server's reference.conf.
+  elasticmq.conf: |
+    include classpath("application.conf")
+
+    # "*" builds every queue URL from the host the request came in on, so the URL a client gets
+    # back is the one it can reach: the Service name in-cluster, localhost through a
+    # port-forward. A fixed host would hand the port-forward a URL it cannot resolve.
+    node-address {
+      protocol = "http"
+      host = "*"
+      port = {{ .Values.service.port }}
+      context-path = ""
+    }
+    generate-node-address = false
+
+    rest-sqs {
+      enabled = true
+      bind-port = {{ .Values.service.port }}
+      bind-hostname = "0.0.0.0"
+      sqs-limits = {{ .Values.sqsLimits | quote }}
+    }
+
+    aws {
+      region = {{ .Values.aws.region | quote }}
+      accountId = {{ .Values.aws.accountId | quote }}
+    }
+
+    # Queues, their attributes and every message journalled to H2 on the volume, and replayed on
+    # start. Queue metadata rides in the same database, so the separate queues-storage file is
+    # not needed.
+    messages-storage {
+      enabled = true
+      uri = {{ printf "jdbc:h2:%s/elasticmq" .Values.persistence.mountPath | quote }}
+    }
+
+    queues {
+    {{- range .Values.queues }}
+      {{ . | quote }} {
+        {{- if hasSuffix ".fifo" . }}
+        fifo = true
+        {{- end }}
+      }
+    {{- end }}
+    }

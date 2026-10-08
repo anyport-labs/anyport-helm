@@ -1,0 +1,32 @@
+apiVersion: v2
+name: anyport-chromium
+description: >
+  Headless Chromium provisioned by Anyport's managed-services catalog, driven by apps over the
+  Chrome DevTools Protocol (Puppeteer, Playwright's connectOverCDP, chromedp). Stateless, one pod.
+
+  First-party because nothing usable publishes one: the common browser-as-a-service images are
+  SSPL, and a bare Chromium answers DevTools only to clients that call it by IP or "localhost",
+  so the chart puts a small proxy in front that every in-cluster client can reach by Service name.
+type: application
+
+# version   = the chart's own version, released in lockstep with the agent chart from one tag.
+# appVersion = the Chromium release this chart installs (values.yaml image.tag).
+version: 0.0.63
+appVersion: "156.0.8078.12"
+
+home: https://github.com/anyport-labs/anyport
+sources:
+  - https://github.com/anyport-labs/anyport
+
+keywords:
+  - anyport
+  - chromium
+  - headless
+  - browser
+  - puppeteer
+  - playwright
+  - cdp
+
+maintainers:
+  - name: abdheshnayak
+    url: https://github.com/anyport-labs

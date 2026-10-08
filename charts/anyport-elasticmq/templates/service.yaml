@@ -1,0 +1,40 @@
+{{/*
+The stable ClusterIP Service apps connect to. Its name is the release name, which is what
+domain/plugins/elasticmq.go builds the connection secret's endpoint from — keep the two in step.
+*/}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "anyport-elasticmq.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "anyport-elasticmq.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: sqs
+      port: {{ .Values.service.port }}
+      targetPort: sqs
+      protocol: TCP
+  selector:
+    {{- include "anyport-elasticmq.selectorLabels" . | nindent 4 }}
+---
+{{/* Headless Service required by the StatefulSet for stable pod DNS. */}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "anyport-elasticmq.headlessName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "anyport-elasticmq.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: sqs
+      port: {{ .Values.service.port }}
+      targetPort: sqs
+      protocol: TCP
+  selector:
+    {{- include "anyport-elasticmq.selectorLabels" . | nindent 4 }}

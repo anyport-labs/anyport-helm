@@ -1,0 +1,14 @@
+{{ .Chart.Name }} {{ .Chart.Version }} installed as release "{{ .Release.Name }}".
+
+Model: {{ .Values.model.id }}{{ with .Values.model.revision }} at {{ . }}{{ end }} ({{ include "anyport-tei.image" . }})
+
+In-cluster address:
+  http://{{ include "anyport-tei.fullname" . }}.{{ .Release.Namespace }}.svc:{{ .Values.service.port }}
+OpenAI-compatible base URL:
+  http://{{ include "anyport-tei.fullname" . }}.{{ .Release.Namespace }}.svc:{{ .Values.service.port }}/v1
+
+API key: the `{{ .Values.auth.existingSecretKey }}` key of secret "{{ .Values.auth.existingSecret }}",
+sent as `Authorization: Bearer <key>`.
+
+The service is not ready until the model has downloaded from the Hugging Face Hub, which needs
+internet access from the cluster. It is cached in {{ .Values.persistence.mountPath }} ({{ .Values.persistence.size }}).
