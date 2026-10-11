@@ -10,7 +10,7 @@ type: application
 
 # version   = the chart's own version, released in lockstep with the agent chart from one tag.
 # appVersion = the Speaches release this chart installs by default (values.yaml image.tag).
-version: 0.0.63
+version: 0.0.64
 appVersion: "0.8.3"
 
 home: https://github.com/anyport-labs/anyport

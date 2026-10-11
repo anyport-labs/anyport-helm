@@ -11,7 +11,7 @@ type: application
 
 # version   = the chart's own version, released in lockstep with the agent chart from one tag.
 # appVersion = the Chromium release this chart installs (values.yaml image.tag).
-version: 0.0.63
+version: 0.0.64
 appVersion: "156.0.8078.12"
 
 home: https://github.com/anyport-labs/anyport
