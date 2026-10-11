@@ -153,8 +153,9 @@ spec:
                       account registration.
                     type: string
                   autoBootstrap:
-                    description: AutoBootstrap allows the agent to install ingress-nginx
-                      + cert-manager without UI confirmation.
+                    description: |-
+                      AutoBootstrap allows the agent to install cert-manager without UI confirmation. The ingress
+                      controller, where one is missing, is installed by the console.
                     type: boolean
                   disabled:
                     description: |-
@@ -583,6 +584,14 @@ spec:
                     description: DetectedIngressControllerVersion is the version of
                       the detected ingress controller (from container image tag).
                     type: string
+                  foreignIngresses:
+                    description: |-
+                      ForeignIngresses are the Ingresses, as namespace/name, that the controller routes go through
+                      serves but Anyport did not write, such as a Helm chart's own. Replacing that controller
+                      leaves them unserved, so the console names them before a switch. At most 50, sorted.
+                    items:
+                      type: string
+                    type: array
                   hasCertManager:
                     description: HasCertManager indicates if cert-manager is detected
                     type: boolean
